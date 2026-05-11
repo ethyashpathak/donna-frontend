@@ -43,7 +43,7 @@ function Dashboard() {
 
   useEffect(() => {
     if (!insight && !isAnalyzing) {
-      runAnalysis().catch(() => {});
+      runAnalysis().catch(() => { });
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
