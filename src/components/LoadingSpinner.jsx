@@ -1,6 +1,31 @@
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+
+const T = {
+  amber: '#E8A030',
+  amberDim: 'rgba(232,160,48,0.55)',
+  ink: '#09090C',
+  text: '#F0EDE8',
+  textMid: 'rgba(240,237,232,0.45)',
+  mono: '"Söhne Mono", "Courier Prime", "Courier New", monospace',
+};
+
+const MESSAGES = [
+  'Scanning threads…',
+  'Extracting signals…',
+  'Building briefing…',
+];
 
 export default function LoadingSpinner() {
+  const [msgIndex, setMsgIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMsgIndex((prev) => (prev + 1) % MESSAGES.length);
+    }, 2200);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -11,92 +36,72 @@ export default function LoadingSpinner() {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '80px 0',
+        padding: '100px 0',
         gap: 32,
       }}
     >
+      {/* Amber-bordered square logo mark with pulsing inner square */}
       <div style={{ position: 'relative' }}>
-        {/* Glow */}
+        {/* Pulsing glow behind */}
         <motion.div
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{ scale: [1, 1.3, 1], opacity: [0.15, 0.35, 0.15] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
           style={{
             position: 'absolute',
-            inset: -20,
-            background: 'radial-gradient(circle, rgba(124,58,237,0.4) 0%, transparent 70%)',
-            borderRadius: '50%',
-            filter: 'blur(10px)',
-          }}
-        />
-        
-        {/* Outer Ring */}
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: '50%',
-            border: '2px dashed rgba(124,58,237,0.3)',
-            position: 'absolute',
-            top: -8,
-            left: -8,
+            inset: -16,
+            background: 'radial-gradient(circle, rgba(232,160,48,0.2) 0%, transparent 70%)',
           }}
         />
 
-        {/* Inner Ring */}
-        <motion.div
-          animate={{ rotate: -360 }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: '50%',
-            border: '2px solid transparent',
-            borderTopColor: '#7C3AED',
-            borderRightColor: '#7C3AED',
-          }}
-        />
-        
-        {/* Center dot */}
-        <motion.div
-          animate={{ scale: [1, 1.5, 1], opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: '#A78BFA',
-            boxShadow: '0 0 10px #A78BFA',
-          }}
-        />
+        {/* Outer square */}
+        <div style={{
+          width: 48,
+          height: 48,
+          border: `2px solid ${T.amber}`,
+          borderRadius: 6,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+        }}>
+          {/* Inner pulsing square */}
+          <motion.div
+            animate={{
+              scale: [1, 1.25, 1],
+              opacity: [0.6, 1, 0.6],
+            }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            style={{
+              width: 16,
+              height: 16,
+              background: T.amber,
+              borderRadius: 3,
+            }}
+          />
+        </div>
       </div>
 
-      <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <motion.div
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            letterSpacing: '0.2em',
-            color: '#7C3AED',
-            textTransform: 'uppercase',
-          }}
-        >
-          Analyzing Communications
-        </motion.div>
-        <p style={{
-          color: '#94A3B8',
-          fontSize: 14,
-          margin: 0,
-        }}>
-          Extracting critical intelligence & patterns...
-        </p>
+      {/* Cycling mono text */}
+      <div style={{ textAlign: 'center', minHeight: 18 }}>
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={msgIndex}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.3 }}
+            style={{
+              fontFamily: T.mono,
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.16em',
+              color: T.amberDim,
+              textTransform: 'uppercase',
+            }}
+          >
+            {MESSAGES[msgIndex]}
+          </motion.span>
+        </AnimatePresence>
       </div>
     </motion.div>
   );

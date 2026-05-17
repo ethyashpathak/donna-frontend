@@ -1,175 +1,105 @@
 import { motion } from 'framer-motion';
 
+const T = {
+  amber: '#E8A030',
+  amberDim: 'rgba(232,160,48,0.55)',
+  panel: '#0E0E14',
+  border: 'rgba(255,255,255,0.055)',
+  text: '#F0EDE8',
+  textMid: 'rgba(240,237,232,0.45)',
+  textFaint: 'rgba(240,237,232,0.22)',
+  mono: '"Söhne Mono", "Courier Prime", "Courier New", monospace',
+  sans: '"Switzer", "Satoshi", "DM Sans", system-ui, sans-serif',
+};
+
 export default function HistoricalPatterns({ patterns }) {
   if (!patterns || patterns.length === 0) return null;
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.6 }}
+      transition={{ delay: 0.55, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <motion.span
-          initial={{ scaleY: 0 }}
-          animate={{ scaleY: 1 }}
-          transition={{ duration: 0.4, delay: 0.7, ease: 'backOut' }}
-          style={{
-            display: 'block',
-            width: 3,
-            height: 14,
-            borderRadius: 99,
-            background: 'linear-gradient(180deg, #A78BFA 0%, #7C3AED 100%)',
-            transformOrigin: 'top',
-            flexShrink: 0,
-          }}
-        />
-        <h2 style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-          color: '#64748B',
-          margin: 0,
-          fontFamily: '"DM Mono", "Fira Mono", monospace',
-        }}>
-          Historical Patterns
-        </h2>
-      </div>
-
-      {/* Card with gradient border */}
       <div style={{
-        padding: 1,
-        borderRadius: 16,
-        background: 'linear-gradient(135deg, rgba(124,58,237,0.3) 0%, rgba(255,255,255,0.03) 50%, rgba(124,58,237,0.1) 100%)',
+        background: T.panel,
+        border: `1px solid ${T.border}`,
+        borderRadius: 6,
+        padding: '24px 28px',
+        position: 'relative',
+        overflow: 'hidden',
       }}>
         <div style={{
-          background: 'rgba(11,11,17,0.85)',
-          borderRadius: 15,
-          padding: '24px 24px 20px',
-          position: 'relative',
-          overflow: 'hidden',
-          backdropFilter: 'blur(12px)',
+          position: 'absolute', top: 0, left: '20%', right: '20%', height: 1,
+          background: 'linear-gradient(90deg, transparent, rgba(232,160,48,0.14), transparent)',
+          pointerEvents: 'none',
+        }} />
+
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16,
         }}>
+          <div style={{ width: 18, height: 1, background: T.amberDim }} />
+          <span style={{
+            fontFamily: T.mono, fontSize: 10, fontWeight: 600,
+            letterSpacing: '0.2em', textTransform: 'uppercase', color: T.amberDim,
+          }}>
+            Historical Patterns
+          </span>
+        </div>
 
-          {/* Top shimmer line */}
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: '8%',
-            right: '8%',
-            height: 1,
-            background: 'linear-gradient(90deg, transparent, rgba(167,139,250,0.3), transparent)',
-            pointerEvents: 'none',
-          }} />
+        {patterns.map((raw, i) => {
+          const isObj = typeof raw === 'object' && raw !== null;
+          const patternText = isObj
+            ? (raw.pattern || raw.text || raw.description || JSON.stringify(raw))
+            : raw;
+          const frequency = isObj ? raw.frequency : null;
 
-          {/* Ambient glow — top left */}
-          <div style={{
-            position: 'absolute',
-            top: -40,
-            left: -20,
-            width: 180,
-            height: 180,
-            borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(124,58,237,0.1) 0%, transparent 70%)',
-            pointerEvents: 'none',
-          }} />
+          return (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 + i * 0.06, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 14,
+                padding: '13px 0',
+                borderBottom: i < patterns.length - 1 ? `1px solid ${T.border}` : 'none',
+              }}
+            >
+              <span style={{
+                fontFamily: T.mono, fontSize: 11, fontWeight: 600,
+                color: T.amberDim, letterSpacing: '0.06em',
+                lineHeight: '22px', flexShrink: 0, minWidth: 22,
+              }}>
+                {String(i + 1).padStart(2, '0')}
+              </span>
 
-          <div style={{ position: 'relative' }}>
-            {/* Timeline track */}
-            <div style={{
-              position: 'absolute',
-              left: 5,
-              top: 10,
-              bottom: 10,
-              width: 1,
-              background: 'linear-gradient(180deg, rgba(124,58,237,0.5) 0%, rgba(124,58,237,0.08) 100%)',
-              borderRadius: 2,
-            }} />
+              <p style={{
+                fontFamily: T.sans, fontSize: 13.5, lineHeight: 1.7,
+                color: T.textMid, margin: 0, flex: 1,
+              }}>
+                {patternText}
+              </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {patterns.map((pattern, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.45, delay: 0.65 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                  style={{
-                    position: 'relative',
-                    paddingLeft: 26,
-                    paddingTop: i === 0 ? 2 : 18,
-                    paddingBottom: i === patterns.length - 1 ? 2 : 0,
-                  }}
-                >
-                  {/* Node: outer ring + inner dot */}
-                  <div style={{
-                    position: 'absolute',
-                    left: 0,
-                    top: i === 0 ? 6 : 24,
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(11,11,17,1)',
-                    border: '1.5px solid rgba(124,58,237,0.6)',
-                    boxShadow: '0 0 10px rgba(124,58,237,0.3), inset 0 0 4px rgba(124,58,237,0.1)',
-                  }}>
+              {frequency != null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginTop: 2 }}>
+                  <div style={{ width: 32, height: 3, background: 'rgba(255,255,255,0.04)', borderRadius: 1, overflow: 'hidden' }}>
                     <div style={{
-                      width: 4,
-                      height: 4,
-                      borderRadius: '50%',
-                      background: 'rgba(167,139,250,0.9)',
-                      boxShadow: '0 0 6px rgba(167,139,250,0.8)',
+                      width: `${Math.min(100, typeof frequency === 'number' ? frequency : 50)}%`,
+                      height: '100%', background: T.amberDim, borderRadius: 1,
                     }} />
                   </div>
-
-                  {/* Index label */}
                   <span style={{
-                    display: 'block',
-                    fontSize: 9.5,
-                    fontFamily: '"DM Mono", "Fira Mono", monospace',
-                    letterSpacing: '0.1em',
-                    color: 'rgba(124,58,237,0.6)',
-                    fontWeight: 600,
-                    marginBottom: 4,
-                    textTransform: 'uppercase',
+                    fontFamily: T.mono, fontSize: 9, color: T.textFaint,
+                    letterSpacing: '0.08em', fontVariantNumeric: 'tabular-nums',
                   }}>
-                    Pattern {String(i + 1).padStart(2, '0')}
+                    {typeof frequency === 'number' ? `${frequency}×` : frequency}
                   </span>
-
-                  <p style={{
-                    fontSize: 13.5,
-                    lineHeight: 1.75,
-                    color: '#94A3B8',
-                    margin: 0,
-                    fontFamily: '"DM Sans", "Helvetica Neue", sans-serif',
-                    fontWeight: 400,
-                    letterSpacing: '0.01em',
-                  }}>
-                    {typeof pattern === 'string'
-                      ? pattern
-                      : pattern.text || pattern.description || JSON.stringify(pattern)}
-                  </p>
-
-                  {/* Subtle separator — skip last */}
-                  {i < patterns.length - 1 && (
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 26,
-                      right: 0,
-                      height: 1,
-                      background: 'linear-gradient(90deg, rgba(255,255,255,0.04), transparent)',
-                    }} />
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })}
       </div>
     </motion.section>
   );

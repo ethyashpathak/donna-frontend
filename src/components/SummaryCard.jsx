@@ -1,106 +1,129 @@
 import { motion } from 'framer-motion';
 
-function getSeverityColor(criticality) {
-  const level = (criticality || '').toUpperCase();
-  if (level === 'CRITICAL' || level === 'HIGH') return '#EF4444';
-  if (level === 'MEDIUM') return '#F97316';
-  return '#22C55E';
+/* ── DESIGN TOKENS ── */
+const T = {
+  amber: '#E8A030',
+  amberDim: 'rgba(232,160,48,0.55)',
+  amberGlow: 'rgba(232,160,48,0.12)',
+  ink: '#09090C',
+  panel: '#0E0E14',
+  border: 'rgba(255,255,255,0.055)',
+  borderHot: 'rgba(232,160,48,0.18)',
+  text: '#F0EDE8',
+  textMid: 'rgba(240,237,232,0.45)',
+  textFaint: 'rgba(240,237,232,0.22)',
+  success: '#4ADE80',
+  error: '#F87171',
+  mono: '"Söhne Mono", "Courier Prime", "Courier New", monospace',
+  display: '"Cormorant Garamond", "Playfair Display", Georgia, serif',
+  sans: '"Switzer", "Satoshi", "DM Sans", system-ui, sans-serif',
+};
+
+/* ── criticality badge color ── */
+function getBadgeColor(criticality) {
+  const level = (criticality || '').toLowerCase();
+  if (level === 'critical') return T.error;
+  if (level === 'high') return T.amber;
+  if (level === 'medium') return T.amberDim;
+  return T.textFaint; // low
 }
 
 export default function SummaryCard({ summary, criticality }) {
-  const color = getSeverityColor(criticality);
-  const label = (criticality || 'LOW').toUpperCase();
+  const badgeColor = getBadgeColor(criticality);
+  const label = (criticality || 'low').toUpperCase();
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.1 }}
+      transition={{ delay: 0.1, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
       <div style={{
-        background: 'linear-gradient(180deg, rgba(30,41,59,0.4) 0%, rgba(19,19,26,0.8) 100%)',
-        border: '1px solid rgba(255,255,255,0.05)',
-        borderRadius: 16,
-        padding: '32px',
+        background: T.panel,
+        border: `1px solid ${T.border}`,
+        borderRadius: 6,
+        padding: '28px 28px 26px',
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: '0 20px 40px -20px rgba(0,0,0,0.5)',
       }}>
-        {/* Glow effect */}
+        {/* Amber shimmer line */}
         <div style={{
           position: 'absolute',
           top: 0,
           left: '20%',
           right: '20%',
           height: 1,
-          background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
-          opacity: 0.5,
-        }} />
-        <div style={{
-          position: 'absolute',
-          top: -100,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 300,
-          height: 150,
-          background: color,
-          filter: 'blur(80px)',
-          opacity: 0.15,
+          background: 'linear-gradient(90deg, transparent, rgba(232,160,48,0.14), transparent)',
           pointerEvents: 'none',
         }} />
 
-        {/* Header */}
+        {/* Panel header */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: 24,
+          marginBottom: 20,
         }}>
-          <h2 style={{
-            fontSize: 12,
-            fontWeight: 700,
-            letterSpacing: '0.15em',
-            textTransform: 'uppercase',
-            color: '#94A3B8',
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}>
-            <span style={{ color: '#7C3AED' }}>✦</span> Executive Summary
-          </h2>
-          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Short amber line */}
+            <div style={{
+              width: 18,
+              height: 1,
+              background: T.amberDim,
+              flexShrink: 0,
+            }} />
+            <span style={{
+              fontFamily: T.mono,
+              fontSize: 10,
+              fontWeight: 600,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              color: T.amberDim,
+            }}>
+              Executive Summary
+            </span>
+          </div>
+
+          {/* Criticality badge */}
           {criticality && (
             <div style={{
-              background: `${color}15`,
-              border: `1px solid ${color}30`,
-              padding: '4px 12px',
-              borderRadius: 100,
               display: 'flex',
               alignItems: 'center',
               gap: 6,
+              padding: '3px 10px',
+              border: `1px solid ${badgeColor}33`,
+              borderRadius: 4,
+              background: `${badgeColor}0A`,
             }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: color }} />
+              <div style={{
+                width: 5,
+                height: 5,
+                borderRadius: 2,
+                background: badgeColor,
+              }} />
               <span style={{
-                fontSize: 11,
+                fontFamily: T.mono,
+                fontSize: 9,
                 fontWeight: 700,
-                color: color,
-                letterSpacing: '0.05em',
+                letterSpacing: '0.12em',
+                color: badgeColor,
               }}>
-                {label} RISK
+                {label}
               </span>
             </div>
           )}
         </div>
 
-        {/* Content */}
+        {/* Summary text — serif italic */}
         <p style={{
+          fontFamily: T.display,
+          fontStyle: 'italic',
           fontSize: 20,
-          lineHeight: 1.6,
-          color: '#FFFFFF',
+          lineHeight: 1.65,
+          color: T.text,
           fontWeight: 400,
           margin: 0,
-          letterSpacing: '-0.01em',
+          letterSpacing: '0.01em',
         }}>
           {summary}
         </p>

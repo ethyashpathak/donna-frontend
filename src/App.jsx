@@ -11,29 +11,38 @@ import ExecutiveBrief from './components/ExecutiveBrief';
 import HistoricalPatterns from './components/HistoricalPatterns';
 import LoadingSpinner from './components/LoadingSpinner';
 
-const GridBackground = () => (
-  <div style={{
-    position: 'fixed',
-    inset: 0,
-    pointerEvents: 'none',
-    zIndex: -1,
-  }}>
-    <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <pattern id="grid-bg" width="60" height="60" patternUnits="userSpaceOnUse">
-          <path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(124,58,237,0.03)" strokeWidth="1" />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill="url(#grid-bg)" />
-    </svg>
+/* ── DESIGN TOKENS (shared with all dashboard components) ── */
+const T = {
+  amber: '#E8A030',
+  amberDim: 'rgba(232,160,48,0.55)',
+  ink: '#09090C',
+  panel: '#0E0E14',
+  border: 'rgba(255,255,255,0.055)',
+  text: '#F0EDE8',
+  textMid: 'rgba(240,237,232,0.45)',
+  textFaint: 'rgba(240,237,232,0.22)',
+  error: '#F87171',
+  mono: '"Söhne Mono", "Courier Prime", "Courier New", monospace',
+  display: '"Cormorant Garamond", "Playfair Display", Georgia, serif',
+  sans: '"Switzer", "Satoshi", "DM Sans", system-ui, sans-serif',
+};
+
+/* ── FIXED BACKGROUND — scan lines + noise ── */
+const FixedBackground = () => (
+  <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: -1 }}>
+    {/* Scan lines */}
     <div style={{
-      position: 'absolute',
-      top: '0%',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: '100vw',
-      height: 500,
-      background: 'radial-gradient(ellipse at top, rgba(124,58,237,0.08) 0%, transparent 70%)',
+      position: 'absolute', inset: 0,
+      backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px)',
+    }} />
+    {/* Noise SVG overlay */}
+    <div style={{
+      position: 'absolute', inset: 0,
+      opacity: 0.028,
+      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+      backgroundRepeat: 'repeat',
+      backgroundSize: '128px 128px',
+      mixBlendMode: 'overlay',
     }} />
   </div>
 );
@@ -50,7 +59,7 @@ function Dashboard() {
   return (
     <>
       <TopBar />
-      <GridBackground />
+      <FixedBackground />
 
       <main style={{
         paddingTop: 100,
@@ -67,9 +76,10 @@ function Dashboard() {
           ) : error && !insight ? (
             <motion.div
               key="error"
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -79,32 +89,29 @@ function Dashboard() {
                 gap: 24,
               }}
             >
-              <div style={{
-                width: 48,
-                height: 48,
-                borderRadius: '50%',
-                background: 'rgba(239,68,68,0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#EF4444',
-                fontSize: 24,
-              }}>
-                !
-              </div>
-              <p style={{ color: '#E2E8F0', fontSize: 16 }}>{error}</p>
+              {/* Error icon — stroked SVG */}
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke={T.error} strokeWidth="1.5" />
+                <path d="M12 8V13M12 16V16.5" stroke={T.error} strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+              <p style={{
+                fontFamily: T.sans, color: T.textMid, fontSize: 14,
+              }}>{error}</p>
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => runAnalysis()}
                 style={{
-                  background: '#7C3AED',
-                  color: '#fff',
+                  background: T.amber,
+                  color: T.ink,
                   border: 'none',
-                  padding: '12px 24px',
-                  borderRadius: 8,
-                  fontSize: 14,
-                  fontWeight: 600,
+                  padding: '10px 22px',
+                  borderRadius: 4,
+                  fontFamily: T.mono,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
                   cursor: 'pointer',
                 }}
               >
@@ -117,24 +124,13 @@ function Dashboard() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 40,
-              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
             >
-              <SummaryCard
-                summary={insight.summary}
-                criticality={insight.criticality}
-              />
-
+              <SummaryCard summary={insight.summary} criticality={insight.criticality} />
               <RiskCard risks={insight.risks} />
-
               <ActionItems items={insight.action_items} />
-
               <Connections connections={insight.connections} />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
                 <ExecutiveBrief brief={insight.executive_brief} />
                 <HistoricalPatterns patterns={insight.historical_patterns} />
               </div>
@@ -160,19 +156,24 @@ export default function App() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: '#0A0A0F',
+        background: T.ink,
       }}>
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            border: '2px solid rgba(124,58,237,0.2)',
-            borderTopColor: '#7C3AED',
-          }}
-        />
+        {/* Square spinner matching boot screen */}
+        <div style={{
+          width: 32,
+          height: 32,
+          border: `2px solid ${T.amber}`,
+          borderRadius: 4,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <motion.div
+            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ width: 10, height: 10, background: T.amber, borderRadius: 2 }}
+          />
+        </div>
       </div>
     );
   }
@@ -187,9 +188,9 @@ export default function App() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
           style={{
-            fontFamily: "'DM Sans', 'SF Pro Display', system-ui, sans-serif",
-            background: '#0A0A0F',
-            color: '#FFFFFF',
+            fontFamily: T.sans,
+            background: T.ink,
+            color: T.text,
             minHeight: '100vh',
           }}
         >

@@ -1,31 +1,53 @@
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 
-const PRIORITY = [
-  {
-    label: 'URGENT',
-    barColor: '#FF2D2D',
-    barGlow: '0 0 8px rgba(255,45,45,0.6)',
-    badgeBg: 'rgba(255,45,45,0.08)',
-    badgeBorder: 'rgba(255,45,45,0.28)',
-    badgeText: '#FF5555',
-    dotColor: '#FF2D2D',
-    rowGlow: 'rgba(255,45,45,0.03)',
-  },
-  {
-    label: 'HIGH',
-    barColor: '#FF8800',
-    barGlow: '0 0 8px rgba(255,136,0,0.5)',
-    badgeBg: 'rgba(255,136,0,0.08)',
-    badgeBorder: 'rgba(255,136,0,0.25)',
-    badgeText: '#FFAA44',
-    dotColor: '#FF8800',
-    rowGlow: 'rgba(255,136,0,0.02)',
-  },
-];
+/* ── DESIGN TOKENS ── */
+const T = {
+  amber: '#E8A030',
+  amberDim: 'rgba(232,160,48,0.55)',
+  ink: '#09090C',
+  panel: '#0E0E14',
+  border: 'rgba(255,255,255,0.055)',
+  borderHot: 'rgba(232,160,48,0.18)',
+  text: '#F0EDE8',
+  textMid: 'rgba(240,237,232,0.45)',
+  textFaint: 'rgba(240,237,232,0.22)',
+  success: '#4ADE80',
+  error: '#F87171',
+  mono: '"Söhne Mono", "Courier Prime", "Courier New", monospace',
+  display: '"Cormorant Garamond", "Playfair Display", Georgia, serif',
+  sans: '"Switzer", "Satoshi", "DM Sans", system-ui, sans-serif',
+};
 
-function getPriority(i) {
-  return PRIORITY[i] ?? null;
+/* ── Custom SVG checkbox (square, not native input) ── */
+function CheckboxSVG({ checked, isHigh }) {
+  const strokeColor = checked
+    ? 'rgba(74,222,128,0.6)'
+    : isHigh
+      ? T.amber
+      : 'rgba(240,237,232,0.18)';
+  const fillColor = checked
+    ? 'rgba(74,222,128,0.08)'
+    : 'transparent';
+
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+      <rect
+        x="1" y="1" width="14" height="14" rx="2"
+        stroke={strokeColor} strokeWidth="1.5"
+        fill={fillColor}
+      />
+      {checked && (
+        <path
+          d="M4.5 8.5L7 11L11.5 5.5"
+          stroke="rgba(74,222,128,0.7)"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  );
 }
 
 export default function ActionItems({ items }) {
@@ -39,317 +61,200 @@ export default function ActionItems({ items }) {
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: 0.3 }}
-      style={{ fontFamily: "'DM Mono', 'Fira Mono', 'Courier New', monospace" }}
+      transition={{ delay: 0.3, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
-
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 2,
-            height: 14,
-            borderRadius: 2,
-            background: 'linear-gradient(180deg, #7C3AED 0%, rgba(124,58,237,0.15) 100%)',
-            boxShadow: '0 0 8px rgba(124,58,237,0.55)',
-          }} />
-          <span style={{
-            fontSize: 10,
-            fontWeight: 600,
-            letterSpacing: '0.22em',
-            textTransform: 'uppercase',
-            color: 'rgba(148,163,184,0.5)',
-          }}>
-            Action Items
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          {/* Live pulse dot */}
-          <span style={{ position: 'relative', display: 'inline-flex', width: 6, height: 6 }}>
-            <motion.span
-              animate={{ scale: [1, 2.2, 1], opacity: [0.6, 0, 0.6] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeOut' }}
-              style={{
-                position: 'absolute', inset: 0, borderRadius: '50%',
-                background: '#7C3AED',
-              }}
-            />
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: '#7C3AED',
-              boxShadow: '0 0 6px rgba(124,58,237,0.9)',
-              display: 'block',
-              position: 'relative',
-            }} />
-          </span>
-
-          <span style={{
-            background: 'rgba(124,58,237,0.09)',
-            border: '1px solid rgba(124,58,237,0.22)',
-            borderRadius: 4,
-            padding: '2px 10px',
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#A78BFA',
-            letterSpacing: '0.13em',
-          }}>
-            {items.length - resolvedCount} PENDING
-          </span>
-        </div>
-      </div>
-
-      {/* ── Item List ── */}
       <div style={{
-        background: 'linear-gradient(160deg, #0F0F17 0%, #111120 100%)',
-        border: '1px solid rgba(30,41,59,0.85)',
-        borderRadius: 10,
-        overflow: 'hidden',
+        background: T.panel,
+        border: `1px solid ${T.border}`,
+        borderRadius: 6,
+        padding: '24px 28px',
         position: 'relative',
-        boxShadow: '0 4px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.025)',
+        overflow: 'hidden',
       }}>
-
-        {/* Top shimmer line */}
+        {/* Amber shimmer line */}
         <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-          background: 'linear-gradient(90deg, transparent 0%, rgba(124,58,237,0.25) 35%, rgba(124,58,237,0.5) 55%, transparent 100%)',
+          position: 'absolute', top: 0, left: '20%', right: '20%', height: 1,
+          background: 'linear-gradient(90deg, transparent, rgba(232,160,48,0.14), transparent)',
           pointerEvents: 'none',
         }} />
 
+        {/* Panel header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 18, height: 1, background: T.amberDim }} />
+            <span style={{
+              fontFamily: T.mono, fontSize: 10, fontWeight: 600,
+              letterSpacing: '0.2em', textTransform: 'uppercase', color: T.amberDim,
+            }}>
+              Action Items
+            </span>
+          </div>
+
+          <span style={{
+            fontFamily: T.mono, fontSize: 9, fontWeight: 600,
+            letterSpacing: '0.12em', color: T.textFaint,
+          }}>
+            {String(items.length - resolvedCount).padStart(2, '0')} PENDING
+          </span>
+        </div>
+
+        {/* Item rows */}
         {items.map((item, i) => {
-          const priority = getPriority(i);
           const isDone = checked[i];
+          // Determine priority — items may be objects { task, priority, owner } or strings
+          const isObject = typeof item === 'object' && item !== null;
+          const task = isObject ? item.task : item;
+          const priority = isObject ? (item.priority || '').toLowerCase() : '';
+          const owner = isObject ? item.owner : null;
+          const isHigh = priority === 'high' || priority === 'urgent' || priority === 'critical';
 
           return (
             <motion.div
               key={i}
-              initial={{ opacity: 0, x: -12 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.35, delay: 0.35 + i * 0.08 }}
-              onClick={() => toggle(i)}
-              whileHover={{
-                background: isDone
-                  ? 'rgba(34,197,94,0.05)'
-                  : priority
-                    ? priority.rowGlow
-                    : 'rgba(124,58,237,0.035)',
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                delay: 0.35 + i * 0.06,
+                duration: 0.55,
+                ease: [0.22, 1, 0.36, 1],
               }}
+              onClick={() => toggle(i)}
+              whileHover={{ y: -1 }}
               style={{
                 display: 'flex',
                 alignItems: 'flex-start',
-                gap: 13,
-                padding: '15px 18px 15px 20px',
-                borderBottom: i < items.length - 1 ? '1px solid rgba(30,41,59,0.75)' : 'none',
+                gap: 12,
+                padding: '14px 0',
+                borderBottom: i < items.length - 1 ? `1px solid ${T.border}` : 'none',
                 cursor: 'pointer',
-                background: isDone ? 'rgba(34,197,94,0.025)' : 'transparent',
-                transition: 'background 0.2s ease',
-                position: 'relative',
+                transition: 'border-color 0.3s ease',
               }}
             >
-              {/* Left edge priority strip */}
-              {priority && !isDone && (
-                <div style={{
-                  position: 'absolute',
-                  left: 0, top: 0, bottom: 0,
-                  width: 2,
-                  background: priority.barColor,
-                  boxShadow: priority.barGlow,
-                }} />
-              )}
-              {isDone && (
-                <div style={{
-                  position: 'absolute',
-                  left: 0, top: 0, bottom: 0,
-                  width: 2,
-                  background: 'rgba(34,197,94,0.35)',
-                  boxShadow: '0 0 6px rgba(34,197,94,0.2)',
-                }} />
-              )}
+              {/* Custom SVG checkbox */}
+              <div style={{ marginTop: 2 }}>
+                <CheckboxSVG checked={isDone} isHigh={isHigh} />
+              </div>
 
-              {/* Checkbox */}
-              <motion.div
-                animate={isDone ? { scale: [1, 1.2, 1] } : {}}
-                transition={{ duration: 0.2 }}
-                style={{
-                  width: 17,
-                  height: 17,
-                  borderRadius: 4,
-                  border: isDone
-                    ? '1.5px solid rgba(34,197,94,0.6)'
-                    : '1.5px solid rgba(148,163,184,0.15)',
-                  background: isDone ? 'rgba(34,197,94,0.1)' : 'rgba(255,255,255,0.018)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  marginTop: 3,
-                  transition: 'all 0.2s ease',
-                  boxShadow: isDone ? '0 0 9px rgba(34,197,94,0.22)' : 'none',
-                }}
-              >
-                {isDone && (
-                  <motion.svg
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{ duration: 0.25 }}
-                    width="9" height="7" viewBox="0 0 10 8" fill="none"
-                  >
-                    <motion.path
-                      d="M1 4L3.5 6.5L9 1"
-                      stroke="#22C55E"
-                      strokeWidth="1.6"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      initial={{ pathLength: 0 }}
-                      animate={{ pathLength: 1 }}
-                      transition={{ duration: 0.25 }}
-                    />
-                  </motion.svg>
+              {/* Task text */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{
+                  fontFamily: T.sans,
+                  fontSize: 13.5,
+                  lineHeight: 1.65,
+                  margin: 0,
+                  color: isDone ? T.textFaint : T.text,
+                  textDecoration: isDone ? 'line-through' : 'none',
+                  textDecorationColor: T.textFaint,
+                  transition: 'color 0.3s ease',
+                }}>
+                  {task}
+                </p>
+
+                {/* Owner — mono text */}
+                {owner && (
+                  <span style={{
+                    fontFamily: T.mono,
+                    fontSize: 10,
+                    color: T.textFaint,
+                    letterSpacing: '0.06em',
+                    marginTop: 4,
+                    display: 'block',
+                  }}>
+                    → {owner}
+                  </span>
                 )}
-              </motion.div>
+              </div>
 
-              {/* Vertical priority bar */}
-              <div style={{
-                width: 2,
-                borderRadius: 99,
-                flexShrink: 0,
-                alignSelf: 'stretch',
-                minHeight: 18,
-                marginTop: 2,
-                background: isDone
-                  ? 'rgba(34,197,94,0.2)'
-                  : priority
-                    ? priority.barColor
-                    : 'rgba(148,163,184,0.08)',
-                boxShadow: (!isDone && priority) ? priority.barGlow : 'none',
-                opacity: isDone ? 0.35 : 1,
-                transition: 'all 0.3s ease',
-              }} />
-
-              {/* Text */}
-              <p style={{
-                color: isDone ? 'rgba(148,163,184,0.28)' : 'rgba(226,232,240,0.9)',
-                fontSize: 13.5,
-                lineHeight: 1.65,
-                margin: 0,
-                flex: 1,
-                textDecoration: isDone ? 'line-through' : 'none',
-                textDecorationColor: 'rgba(148,163,184,0.2)',
-                letterSpacing: '0.01em',
-                transition: 'all 0.3s ease',
-              }}>
-                {item}
-              </p>
-
-              {/* Priority badge — first two items */}
-              {i < 2 && !isDone && (
-                <motion.span
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.4 + i * 0.1 }}
-                  style={{
-                    flexShrink: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 5,
-                    fontSize: 9,
-                    fontWeight: 700,
-                    letterSpacing: '0.14em',
-                    padding: '3px 8px',
-                    borderRadius: 3,
-                    background: priority.badgeBg,
-                    border: `1px solid ${priority.badgeBorder}`,
-                    color: priority.badgeText,
-                    marginTop: 3,
-                    boxShadow: `0 0 12px ${priority.badgeBg}`,
-                  }}
-                >
-                  {/* Blinking dot for URGENT */}
-                  {i === 0 && (
-                    <motion.span
-                      animate={{ opacity: [1, 0.2, 1] }}
-                      transition={{ duration: 1.1, repeat: Infinity }}
-                      style={{
-                        width: 5, height: 5, borderRadius: '50%',
-                        background: priority.dotColor,
-                        display: 'inline-block',
-                        boxShadow: `0 0 4px ${priority.dotColor}`,
-                      }}
-                    />
-                  )}
-                  {priority.label}
-                </motion.span>
+              {/* Priority tag */}
+              {isHigh && !isDone && (
+                <span style={{
+                  fontFamily: T.mono,
+                  fontSize: 9,
+                  fontWeight: 700,
+                  letterSpacing: '0.14em',
+                  padding: '2px 8px',
+                  borderRadius: 3,
+                  background: 'rgba(232,160,48,0.08)',
+                  border: `1px solid ${T.borderHot}`,
+                  color: T.amberDim,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  marginTop: 2,
+                }}>
+                  {priority.toUpperCase()}
+                </span>
               )}
 
-              {/* Resolved stamp */}
+              {/* Resolved tag */}
               {isDone && (
                 <motion.span
-                  initial={{ opacity: 0, scale: 0.75 }}
+                  initial={{ opacity: 0, scale: 0.85 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.2 }}
                   style={{
-                    flexShrink: 0,
+                    fontFamily: T.mono,
                     fontSize: 9,
                     fontWeight: 700,
                     letterSpacing: '0.14em',
-                    padding: '3px 8px',
+                    padding: '2px 8px',
                     borderRadius: 3,
-                    background: 'rgba(34,197,94,0.05)',
-                    border: '1px solid rgba(34,197,94,0.15)',
-                    color: 'rgba(34,197,94,0.45)',
-                    marginTop: 3,
+                    background: 'rgba(74,222,128,0.06)',
+                    border: '1px solid rgba(74,222,128,0.15)',
+                    color: 'rgba(74,222,128,0.5)',
+                    flexShrink: 0,
+                    marginTop: 2,
                   }}
                 >
-                  RESOLVED
+                  DONE
                 </motion.span>
               )}
             </motion.div>
           );
         })}
-      </div>
 
-      {/* ── Progress Bar ── */}
-      <div style={{ marginTop: 13, display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Progress bar */}
         <div style={{
-          flex: 1,
-          height: 2,
-          background: 'rgba(30,41,59,0.65)',
-          borderRadius: 99,
-          overflow: 'hidden',
+          marginTop: 16,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
         }}>
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPct}%` }}
-            transition={{ duration: 0.4, ease: 'easeOut' }}
-            style={{
-              height: '100%',
-              borderRadius: 99,
-              background: progressPct === 100
-                ? '#22C55E'
-                : 'linear-gradient(90deg, #6D28D9 0%, #A78BFA 100%)',
-              boxShadow: progressPct === 100
-                ? '0 0 8px rgba(34,197,94,0.5)'
-                : '0 0 8px rgba(124,58,237,0.45)',
-            }}
-          />
+          <div style={{
+            flex: 1,
+            height: 2,
+            background: 'rgba(255,255,255,0.04)',
+            borderRadius: 1,
+            overflow: 'hidden',
+          }}>
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPct}%` }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              style={{
+                height: '100%',
+                borderRadius: 1,
+                background: progressPct === 100 ? T.success : T.amber,
+              }}
+            />
+          </div>
+
+          <span style={{
+            fontFamily: T.mono,
+            fontSize: 10,
+            letterSpacing: '0.1em',
+            color: resolvedCount === items.length ? 'rgba(74,222,128,0.55)' : T.textFaint,
+            flexShrink: 0,
+            fontVariantNumeric: 'tabular-nums',
+          }}>
+            {String(resolvedCount).padStart(2, '0')}/{String(items.length).padStart(2, '0')}
+          </span>
         </div>
-
-        <span style={{
-          fontSize: 10,
-          letterSpacing: '0.1em',
-          color: resolvedCount === items.length
-            ? 'rgba(34,197,94,0.55)'
-            : 'rgba(148,163,184,0.3)',
-          flexShrink: 0,
-          transition: 'color 0.4s ease',
-          fontVariantNumeric: 'tabular-nums',
-        }}>
-          {String(resolvedCount).padStart(2, '0')}/{String(items.length).padStart(2, '0')} RESOLVED
-        </span>
       </div>
-
     </motion.section>
   );
 }
