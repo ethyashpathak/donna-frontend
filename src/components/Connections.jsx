@@ -1,5 +1,14 @@
 import { motion } from 'framer-motion';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
+import ReactFlow, {
+  ReactFlowProvider,
+  useNodesState,
+  useEdgesState,
+  Handle,
+  Position,
+  MarkerType,
+} from 'reactflow';
+import 'reactflow/dist/style.css';
 
 /* ── DESIGN TOKENS ── */
 const T = {
@@ -17,279 +26,207 @@ const T = {
   sans: '"Switzer", "Satoshi", "DM Sans", system-ui, sans-serif',
 };
 
-/* ── Simple force simulation (no D3 dependency) ── */
-function useForceLayout(nodes, edges, width, height) {
-  const [positions, setPositions] = useState({});
-
-  useEffect(() => {
-    if (!nodes.length || !width || !height) return;
-
-    // Seed positions in a circle
-    const pos = {};
-    nodes.forEach((n, i) => {
-      const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
-      const r = Math.min(width, height) * 0.32;
-      pos[n.id] = {
-        x: width / 2 + r * Math.cos(angle),
-        y: height / 2 + r * Math.sin(angle),
-        vx: 0,
-        vy: 0,
-      };
-    });
-
-    const REPULSION = 2800;
-    const SPRING_LEN = Math.min(width, height) * 0.28;
-    const SPRING_K = 0.06;
-    const DAMPING = 0.82;
-    const ITERATIONS = 180;
-
-    for (let iter = 0; iter < ITERATIONS; iter++) {
-      // Repulsion between all node pairs
-      for (let a = 0; a < nodes.length; a++) {
-        for (let b = a + 1; b < nodes.length; b++) {
-          const pa = pos[nodes[a].id];
-          const pb = pos[nodes[b].id];
-          const dx = pb.x - pa.x;
-          const dy = pb.y - pa.y;
-          const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-          const force = REPULSION / (dist * dist);
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-          pa.vx -= fx; pa.vy -= fy;
-          pb.vx += fx; pb.vy += fy;
-        }
-      }
-
-      // Spring attraction along edges
-      edges.forEach(({ source, target }) => {
-        const ps = pos[source];
-        const pt = pos[target];
-        if (!ps || !pt) return;
-        const dx = pt.x - ps.x;
-        const dy = pt.y - ps.y;
-        const dist = Math.max(Math.sqrt(dx * dx + dy * dy), 1);
-        const force = SPRING_K * (dist - SPRING_LEN);
-        const fx = (dx / dist) * force;
-        const fy = (dy / dist) * force;
-        ps.vx += fx; ps.vy += fy;
-        pt.vx -= fx; pt.vy -= fy;
-      });
-
-      // Integrate + damp + clamp to bounds
-      const PAD = 44;
-      nodes.forEach(n => {
-        const p = pos[n.id];
-        p.vx *= DAMPING; p.vy *= DAMPING;
-        p.x = Math.max(PAD, Math.min(width - PAD, p.x + p.vx));
-        p.y = Math.max(PAD, Math.min(height - PAD, p.y + p.vy));
-      });
-    }
-
-    // Strip velocity, keep only x/y
-    const final = {};
-    nodes.forEach(n => { final[n.id] = { x: pos[n.id].x, y: pos[n.id].y }; });
-    setPositions(final);
-  }, [nodes.length, edges.length, width, height]); // eslint-disable-line
-
-  return positions;
-}
-
-/* ── NODE DEGREE (how many edges touch each node) ── */
-function useDegrees(nodes, edges) {
-  return useMemo(() => {
-    const deg = {};
-    nodes.forEach(n => { deg[n.id] = 0; });
-    edges.forEach(({ source, target }) => {
-      if (deg[source] !== undefined) deg[source]++;
-      if (deg[target] !== undefined) deg[target]++;
-    });
-    return deg;
-  }, [nodes, edges]);
-}
-
-/* ── GRAPH SVG ── */
-function ConnectionGraph({ connections, width, height }) {
-  const [hovered, setHovered] = useState(null);
-
-  // Derive unique nodes + edges from connections array
-  const { nodes, edges } = useMemo(() => {
-    const nodeSet = new Set();
-    const edgeList = [];
-    connections.forEach((conn, i) => {
-      const isObj = typeof conn === 'object' && conn !== null;
-      const from = isObj ? (conn.from || '') : String(conn);
-      const to = isObj ? (conn.to || '') : '';
-      const type = isObj ? (conn.type || '') : '';
-      if (from) nodeSet.add(from);
-      if (to) nodeSet.add(to);
-      if (from && to) edgeList.push({ id: i, source: from, target: to, type });
-    });
-    return {
-      nodes: Array.from(nodeSet).map(id => ({ id })),
-      edges: edgeList,
-    };
-  }, [connections]);
-
-  const positions = useForceLayout(nodes, edges, width, height);
-  const degrees = useDegrees(nodes, edges);
-
-  if (!Object.keys(positions).length) return null;
-
-  const hoveredEdges = new Set(
-    hovered
-      ? edges.filter(e => e.source === hovered || e.target === hovered).map(e => e.id)
-      : []
-  );
+/* ── Custom Node ── */
+function ConnectionNode({ data }) {
+  const deg = data.degree || 0;
+  const size = 28 + Math.min(deg, 4) * 4;
 
   return (
-    <svg
-      width={width}
-      height={height}
-      style={{ position: 'absolute', inset: 0, overflow: 'visible' }}
-    >
-      <defs>
-        {/* Arrowhead marker */}
-        <marker
-          id="arrow"
-          markerWidth="7" markerHeight="7"
-          refX="6" refY="3.5"
-          orient="auto"
-        >
-          <path d="M0,1 L6,3.5 L0,6 Z" fill="rgba(232,160,48,0.35)" />
-        </marker>
-        <marker
-          id="arrow-hot"
-          markerWidth="7" markerHeight="7"
-          refX="6" refY="3.5"
-          orient="auto"
-        >
-          <path d="M0,1 L6,3.5 L0,6 Z" fill="rgba(232,160,48,0.9)" />
-        </marker>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: 6,
+    }}>
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ background: 'transparent', border: 'none', width: 1, height: 1 }}
+      />
 
-        {/* Node glow filter */}
-        <filter id="node-glow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
+      {/* Node circle */}
+      <div
+        className="connection-node-circle"
+        style={{
+        width: size,
+        height: size,
+        borderRadius: '50%',
+        background: 'rgba(232,160,48,0.06)',
+        border: `1.5px solid rgba(232,160,48,0.45)`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
+        cursor: 'grab',
+      }}>
+        {/* Inner dot for high-degree nodes */}
+        {deg >= 2 && (
+          <div style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: 'rgba(232,160,48,0.5)',
+          }} />
+        )}
+      </div>
 
-      {/* ── EDGES ── */}
-      {edges.map(edge => {
-        const ps = positions[edge.source];
-        const pt = positions[edge.target];
-        if (!ps || !pt) return null;
+      {/* Label */}
+      <span style={{
+        fontFamily: T.mono,
+        fontSize: 9,
+        color: T.textMid,
+        letterSpacing: '0.06em',
+        textAlign: 'center',
+        maxWidth: 90,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+        userSelect: 'none',
+      }}>
+        {data.label}
+      </span>
 
-        const isHot = hoveredEdges.has(edge.id);
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ background: 'transparent', border: 'none', width: 1, height: 1 }}
+      />
+    </div>
+  );
+}
 
-        // Shorten line so it doesn't overlap node circle
-        const dx = pt.x - ps.x;
-        const dy = pt.y - ps.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const nodeR = 16;
-        const sx = ps.x + (dx / dist) * nodeR;
-        const sy = ps.y + (dy / dist) * nodeR;
-        const tx = pt.x - (dx / dist) * (nodeR + 6);
-        const ty = pt.y - (dy / dist) * (nodeR + 6);
+/* nodeTypes must be defined OUTSIDE the component to prevent re-mounts */
+const nodeTypes = { connection: ConnectionNode };
 
-        return (
-          <g key={edge.id}>
-            <line
-              x1={sx} y1={sy} x2={tx} y2={ty}
-              stroke={isHot ? 'rgba(232,160,48,0.75)' : 'rgba(232,160,48,0.15)'}
-              strokeWidth={isHot ? 1.5 : 1}
-              markerEnd={`url(#${isHot ? 'arrow-hot' : 'arrow'})`}
-              style={{ transition: 'stroke 0.2s, stroke-width 0.2s' }}
-            />
-            {/* Edge type label at midpoint */}
-            {edge.type && isHot && (
-              <text
-                x={(sx + tx) / 2}
-                y={(sy + ty) / 2 - 7}
-                textAnchor="middle"
-                style={{
-                  fontFamily: T.mono, fontSize: 8,
-                  fill: T.amberDim, letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {edge.type}
-              </text>
-            )}
-          </g>
-        );
-      })}
+/* ── Override React Flow default styles for dark theme ── */
+const rfStyle = {
+  background: 'transparent',
+};
 
-      {/* ── NODES ── */}
-      {nodes.map(node => {
-        const p = positions[node.id];
-        if (!p) return null;
+const defaultEdgeOptions = {
+  type: 'default',
+  animated: true,
+  style: { stroke: 'rgba(232,160,48,0.25)', strokeWidth: 1.2 },
+  markerEnd: {
+    type: MarkerType.ArrowClosed,
+    color: 'rgba(232,160,48,0.4)',
+    width: 16,
+    height: 16,
+  },
+};
 
-        const deg = degrees[node.id] || 0;
-        const isHot = hovered === node.id;
-        const isFaded = hovered && !isHot &&
-          !edges.some(e => (e.source === hovered && e.target === node.id) ||
-            (e.target === hovered && e.source === node.id));
+/* ── Build React Flow nodes + edges from connections data ── */
+function buildGraph(connections) {
+  const nodeSet = new Map(); // id -> { degree }
+  const edgeList = [];
 
-        // Size scales slightly with degree
-        const r = 7 + Math.min(deg, 4) * 1.5;
+  connections.forEach((conn, i) => {
+    const isObj = typeof conn === 'object' && conn !== null;
+    const from = isObj ? (conn.from || '') : String(conn);
+    const to = isObj ? (conn.to || '') : '';
+    const type = isObj ? (conn.type || '') : '';
 
-        return (
-          <g
-            key={node.id}
-            transform={`translate(${p.x},${p.y})`}
-            style={{ cursor: 'pointer' }}
-            onMouseEnter={() => setHovered(node.id)}
-            onMouseLeave={() => setHovered(null)}
-          >
-            {/* Outer glow ring — visible on hover */}
-            {isHot && (
-              <circle
-                r={r + 7}
-                fill="none"
-                stroke="rgba(232,160,48,0.18)"
-                strokeWidth={1}
-              />
-            )}
+    if (from && !nodeSet.has(from)) nodeSet.set(from, { degree: 0 });
+    if (to && !nodeSet.has(to)) nodeSet.set(to, { degree: 0 });
 
-            {/* Node circle */}
-            <circle
-              r={r}
-              fill={isHot ? 'rgba(232,160,48,0.18)' : 'rgba(255,255,255,0.04)'}
-              stroke={isHot ? T.amber : isFaded ? 'rgba(255,255,255,0.04)' : 'rgba(232,160,48,0.45)'}
-              strokeWidth={isHot ? 1.5 : 1}
-              style={{ transition: 'fill 0.2s, stroke 0.2s' }}
-              filter={isHot ? 'url(#node-glow)' : undefined}
-            />
+    if (from && to) {
+      nodeSet.get(from).degree++;
+      nodeSet.get(to).degree++;
+      edgeList.push({
+        id: `e-${i}`,
+        source: from,
+        target: to,
+        label: type || undefined,
+      });
+    }
+  });
 
-            {/* Degree dot — central fill for high-degree nodes */}
-            {deg >= 2 && (
-              <circle
-                r={2.5}
-                fill={isHot ? T.amber : 'rgba(232,160,48,0.5)'}
-                style={{ transition: 'fill 0.2s' }}
-              />
-            )}
+  // Layout: arrange nodes in a circle
+  const nodeIds = Array.from(nodeSet.keys());
+  const count = nodeIds.length;
+  const cx = 300;
+  const cy = 160;
+  const radius = Math.min(240, 60 + count * 28);
 
-            {/* Label — below node */}
-            <text
-              y={r + 14}
-              textAnchor="middle"
-              style={{
-                fontFamily: T.mono,
-                fontSize: isHot ? 10 : 9,
-                fill: isHot ? T.text : isFaded ? T.textFaint : T.textMid,
-                letterSpacing: '0.06em',
-                transition: 'fill 0.2s, font-size 0.2s',
-                pointerEvents: 'none',
-                userSelect: 'none',
-              }}
-            >
-              {node.id.length > 16 ? node.id.slice(0, 15) + '…' : node.id}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+  const nodes = nodeIds.map((id, i) => {
+    const angle = (2 * Math.PI * i) / count - Math.PI / 2;
+    return {
+      id,
+      type: 'connection',
+      position: {
+        x: cx + radius * Math.cos(angle) - 20,
+        y: cy + radius * Math.sin(angle) - 20,
+      },
+      data: {
+        label: id,
+        degree: nodeSet.get(id).degree,
+      },
+      draggable: true,
+    };
+  });
+
+  const edges = edgeList.map((e) => ({
+    ...e,
+    style: {
+      stroke: 'rgba(232,160,48,0.25)',
+      strokeWidth: 1.2,
+    },
+    labelStyle: {
+      fontFamily: T.mono,
+      fontSize: 8,
+      fill: T.amberDim,
+      letterSpacing: '0.1em',
+      textTransform: 'uppercase',
+    },
+    labelBgStyle: {
+      fill: T.panel,
+      fillOpacity: 0.9,
+    },
+    labelBgPadding: [4, 6],
+    labelBgBorderRadius: 3,
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      color: 'rgba(232,160,48,0.4)',
+      width: 14,
+      height: 14,
+    },
+  }));
+
+  return { nodes, edges };
+}
+
+/* ── Inner Flow (needs ReactFlowProvider above it) ── */
+function FlowGraph({ connections }) {
+  const { nodes: initNodes, edges: initEdges } = useMemo(
+    () => buildGraph(connections),
+    [connections]
+  );
+
+  const [nodes, , onNodesChange] = useNodesState(initNodes);
+  const [edges, , onEdgesChange] = useEdgesState(initEdges);
+
+  return (
+    <ReactFlow
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      nodeTypes={nodeTypes}
+      defaultEdgeOptions={defaultEdgeOptions}
+      style={rfStyle}
+      fitView
+      fitViewOptions={{ padding: 0.3 }}
+      proOptions={{ hideAttribution: true }}
+      minZoom={0.5}
+      maxZoom={1.5}
+      nodesDraggable
+      nodesConnectable={false}
+      elementsSelectable={false}
+      panOnDrag
+      zoomOnScroll={false}
+      zoomOnPinch
+      preventScrolling={false}
+    />
   );
 }
 
@@ -297,60 +234,42 @@ function ConnectionGraph({ connections, width, height }) {
    MAIN EXPORT
 ══════════════════════════════════════ */
 export default function Connections({ connections }) {
-  const containerRef = useRef(null);
-  const [dims, setDims] = useState({ width: 0, height: 0 });
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(entries => {
-      const { width, height } = entries[0].contentRect;
-      setDims({ width, height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  if (!connections || connections.length === 0) return null;
-
   const nodeCount = useMemo(() => {
     const s = new Set();
-    connections.forEach(c => {
+    (connections || []).forEach(c => {
       if (typeof c === 'object') { if (c.from) s.add(c.from); if (c.to) s.add(c.to); }
       else s.add(String(c));
     });
     return s.size;
   }, [connections]);
 
+  if (!connections || connections.length === 0) return null;
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.4, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-      style={{ height: '100%' }}
     >
       <div style={{
         background: T.panel,
         border: `1px solid ${T.border}`,
         borderRadius: 6,
-        height: '100%',
         position: 'relative',
         overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
       }}>
         {/* Amber shimmer */}
         <div style={{
           position: 'absolute', top: 0, left: '20%', right: '20%', height: 1,
           background: 'linear-gradient(90deg, transparent, rgba(232,160,48,0.14), transparent)',
-          pointerEvents: 'none',
+          pointerEvents: 'none', zIndex: 2,
         }} />
 
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
-          padding: '16px 22px 12px',
-          flexShrink: 0,
+          padding: '16px 22px 0',
+          position: 'relative', zIndex: 2,
         }}>
           <div style={{ width: 18, height: 1, background: T.amberDim }} />
           <span style={{
@@ -373,30 +292,11 @@ export default function Connections({ connections }) {
           </div>
         </div>
 
-        {/* Graph canvas */}
-        <div
-          ref={containerRef}
-          style={{ flex: 1, position: 'relative', overflow: 'hidden' }}
-        >
-          {dims.width > 0 && (
-            <ConnectionGraph
-              connections={connections}
-              width={dims.width}
-              height={dims.height}
-            />
-          )}
-
-          {/* Empty state */}
-          {connections.length === 0 && (
-            <div style={{
-              position: 'absolute', inset: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>
-              <span style={{ fontFamily: T.mono, fontSize: 10, color: T.textFaint, letterSpacing: '0.14em' }}>
-                NO CONNECTIONS DETECTED
-              </span>
-            </div>
-          )}
+        {/* React Flow graph */}
+        <div style={{ width: '100%', height: 360 }}>
+          <ReactFlowProvider>
+            <FlowGraph connections={connections} />
+          </ReactFlowProvider>
         </div>
       </div>
     </motion.section>

@@ -46,3 +46,40 @@ body {
   background: rgba(232, 160, 48, 0.25);
   color: #F0EDE8;
 }
+
+/* ── React Flow dark theme overrides ── */
+.react-flow__background {
+  background: transparent !important;
+}
+
+.react-flow__pane {
+  cursor: grab;
+}
+
+.react-flow__edge-text {
+  fill: rgba(232, 160, 48, 0.55) !important;
+}
+
+.react-flow__edge-textbg {
+  fill: #0E0E14 !important;
+  fill-opacity: 0.92 !important;
+}
+
+.react-flow__handle {
+  opacity: 0 !important;
+}
+
+.react-flow__attribution {
+  display: none !important;
+}
+
+.react-flow__minimap,
+.react-flow__controls {
+  display: none !important;
+}
+
+.react-flow__node:hover .connection-node-circle {
+  border-color: #E8A030 !important;
+  background: rgba(232, 160, 48, 0.12) !important;
+  box-shadow: 0 0 12px rgba(232, 160, 48, 0.2);
+}
