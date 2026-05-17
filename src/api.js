@@ -1,4 +1,4 @@
-const BASE = process.env.VITE_BACKEND_API;
+const BASE = import.meta.env.VITE_BACKEND_API;
 
 export const getGmailMessages = () =>
   fetch(`${BASE}/gmail/messages`).then((r) => {
