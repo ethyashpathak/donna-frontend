@@ -41,6 +41,14 @@ export function AppProvider({ children }) {
     }
   }, []);
 
+  const logout = useCallback(() => {
+    setGmailConnected(false);
+    setInsight(null);
+    setIsAnalyzing(false);
+    setLastAnalyzed(null);
+    setError(null);
+  }, []);
+
   return (
     <AppContext.Provider
       value={{
@@ -57,6 +65,7 @@ export function AppProvider({ children }) {
         connectionChecked,
         checkConnection,
         runAnalysis,
+        logout,
       }}
     >
       {children}
