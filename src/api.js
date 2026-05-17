@@ -1,4 +1,4 @@
-const BASE = process.env.VITE_BACKEND_API || "http://localhost:3000";
+const BASE = process.env.VITE_BACKEND_API;
 
 export const getGmailMessages = () =>
   fetch(`${BASE}/gmail/messages`).then((r) => {
