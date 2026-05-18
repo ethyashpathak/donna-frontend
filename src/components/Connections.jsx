@@ -48,17 +48,17 @@ function ConnectionNode({ data }) {
       <div
         className="connection-node-circle"
         style={{
-        width: size,
-        height: size,
-        borderRadius: '50%',
-        background: 'rgba(232,160,48,0.06)',
-        border: `1.5px solid rgba(232,160,48,0.45)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        transition: 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
-        cursor: 'grab',
-      }}>
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          background: 'rgba(232,160,48,0.06)',
+          border: `1.5px solid rgba(232,160,48,0.45)`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
+          cursor: 'grab',
+        }}>
         {/* Inner dot for high-degree nodes */}
         {deg >= 2 && (
           <div style={{
@@ -117,82 +117,155 @@ const defaultEdgeOptions = {
 
 /* ── Build React Flow nodes + edges from connections data ── */
 function buildGraph(connections) {
-  const nodeSet = new Map(); // id -> { degree }
+
+  const nodeSet = new Map();
   const edgeList = [];
 
-  connections.forEach((conn, i) => {
-    const isObj = typeof conn === 'object' && conn !== null;
-    const from = isObj ? (conn.from || '') : String(conn);
-    const to = isObj ? (conn.to || '') : '';
-    const type = isObj ? (conn.type || '') : '';
+  // Object format:
+  // [{from,to,type}]
+  const objectMode =
+    connections.some(
+      c =>
+        typeof c === "object" &&
+        c?.from &&
+        c?.to
+    );
 
-    if (from && !nodeSet.has(from)) nodeSet.set(from, { degree: 0 });
-    if (to && !nodeSet.has(to)) nodeSet.set(to, { degree: 0 });
+  if (objectMode) {
 
-    if (from && to) {
+    connections.forEach((conn, i) => {
+
+      const from = conn.from;
+      const to = conn.to;
+      const type = conn.type || "";
+
+      if (!nodeSet.has(from))
+        nodeSet.set(
+          from,
+          { degree: 0 }
+        );
+
+      if (!nodeSet.has(to))
+        nodeSet.set(
+          to,
+          { degree: 0 }
+        );
+
       nodeSet.get(from).degree++;
       nodeSet.get(to).degree++;
+
       edgeList.push({
         id: `e-${i}`,
         source: from,
         target: to,
-        label: type || undefined,
+        label: type
       });
-    }
-  });
 
-  // Layout: arrange nodes in a circle
-  const nodeIds = Array.from(nodeSet.keys());
+    });
+
+  }
+
+  // String array mode:
+  // ["Backend","DevOps","QA"]
+
+  else {
+
+    connections.forEach((name) => {
+
+      if (!nodeSet.has(name)) {
+
+        nodeSet.set(
+          name,
+          { degree: 0 }
+        );
+
+      }
+
+    });
+
+    const ids = Array.from(
+      nodeSet.keys()
+    );
+
+    // connect sequentially
+
+    for (let i = 0; i < ids.length - 1; i++) {
+
+      nodeSet.get(ids[i]).degree++;
+      nodeSet.get(ids[i + 1]).degree++;
+
+      edgeList.push({
+
+        id: `e-${i}`,
+
+        source: ids[i],
+
+        target: ids[i + 1],
+
+        label: "related"
+
+      });
+
+    }
+
+  }
+
+  const nodeIds = Array.from(
+    nodeSet.keys()
+  );
+
   const count = nodeIds.length;
+
   const cx = 300;
   const cy = 160;
-  const radius = Math.min(240, 60 + count * 28);
 
-  const nodes = nodeIds.map((id, i) => {
-    const angle = (2 * Math.PI * i) / count - Math.PI / 2;
-    return {
-      id,
-      type: 'connection',
-      position: {
-        x: cx + radius * Math.cos(angle) - 20,
-        y: cy + radius * Math.sin(angle) - 20,
-      },
-      data: {
-        label: id,
-        degree: nodeSet.get(id).degree,
-      },
-      draggable: true,
-    };
-  });
+  const radius = Math.min(
+    240,
+    60 + count * 28
+  );
 
-  const edges = edgeList.map((e) => ({
-    ...e,
-    style: {
-      stroke: 'rgba(232,160,48,0.25)',
-      strokeWidth: 1.2,
-    },
-    labelStyle: {
-      fontFamily: T.mono,
-      fontSize: 8,
-      fill: T.amberDim,
-      letterSpacing: '0.1em',
-      textTransform: 'uppercase',
-    },
-    labelBgStyle: {
-      fill: T.panel,
-      fillOpacity: 0.9,
-    },
-    labelBgPadding: [4, 6],
-    labelBgBorderRadius: 3,
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      color: 'rgba(232,160,48,0.4)',
-      width: 14,
-      height: 14,
-    },
-  }));
+  const nodes = nodeIds.map(
+    (id, i) => {
 
-  return { nodes, edges };
+      const angle =
+        (2 * Math.PI * i) / count
+        - Math.PI / 2;
+
+      return {
+
+        id,
+
+        type: "connection",
+
+        position: {
+          x:
+            cx +
+            radius *
+            Math.cos(angle) - 20,
+
+          y:
+            cy +
+            radius *
+            Math.sin(angle) - 20
+        },
+
+        data: {
+          label: id,
+          degree:
+            nodeSet.get(id)
+              .degree
+        }
+
+      };
+
+    }
+  );
+
+  return {
+    nodes,
+    edges: edgeList
+  };
+
 }
 
 /* ── Inner Flow (needs ReactFlowProvider above it) ── */
