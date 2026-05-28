@@ -6,6 +6,12 @@
   box-sizing: border-box;
 }
 
+/* ── Mobile-safe base ── */
+html, body {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
 html {
   font-family: "Switzer", "Satoshi", "DM Sans", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -82,4 +88,170 @@ body {
   border-color: #E8A030 !important;
   background: rgba(232, 160, 48, 0.12) !important;
   box-shadow: 0 0 12px rgba(232, 160, 48, 0.2);
+}
+
+/* ══════════════════════════════════════════════
+   RESPONSIVE — Mobile-first layout adjustments
+══════════════════════════════════════════════ */
+
+/* ── TopBar ── */
+.topbar-inner {
+  padding: 0 40px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.topbar-subtitle {
+  display: inline;
+}
+
+.topbar-timestamp {
+  display: flex;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── SignupPage Navbar ── */
+.signup-navbar-inner {
+  padding: 0 48px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.signup-navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+/* ── SignupPage Footer ── */
+.signup-footer {
+  padding: 32px 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-direction: row;
+}
+
+/* ── Dashboard grid (ExecutiveBrief + HistoricalPatterns) ── */
+.dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ── RiskRow header ── */
+.risk-row-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+/* ══ Tablet breakpoint (≤ 768px) ══ */
+@media (max-width: 768px) {
+
+  /* TopBar */
+  .topbar-inner {
+    padding: 0 16px;
+    height: 54px;
+  }
+
+  .topbar-subtitle {
+    display: none;
+  }
+
+  .topbar-timestamp {
+    display: none;
+  }
+
+  .topbar-right {
+    gap: 4px;
+  }
+
+  /* Signup Navbar */
+  .signup-navbar-inner {
+    padding: 0 20px;
+    height: 56px;
+  }
+
+  .signup-navbar-links {
+    gap: 18px;
+  }
+
+  /* Signup Footer */
+  .signup-footer {
+    padding: 24px 20px;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  /* Dashboard grid → single column */
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Risk row title wraps + severity stacks */
+  .risk-row-header {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}
+
+/* ══ Small mobile (≤ 480px) ══ */
+@media (max-width: 480px) {
+
+  /* TopBar: tighten buttons */
+  .topbar-inner {
+    padding: 0 12px;
+    height: 52px;
+  }
+
+  .topbar-run-btn-label {
+    display: none;
+  }
+
+  /* Signup Navbar: hide links entirely */
+  .signup-navbar-links {
+    display: none;
+  }
+
+  /* Hero padding reduction handled via clamp on font sizes */
+}
+
+/* ── Panel card padding — responsive ── */
+@media (max-width: 600px) {
+  /* Target the direct wrapper div inside each section panel */
+  .donna-panel {
+    padding: 18px 16px !important;
+  }
+}
+
+/* Apply donna-panel class via each component's outer div */
+/* This is a lightweight selector-based approach */
+@media (max-width: 600px) {
+  /* SummaryCard, RiskCard, ActionItems, ExecutiveBrief, HistoricalPatterns panels */
+  section > div[style*="background: rgb(14, 14, 20)"],
+  section > div[style*="background: #0E0E14"] {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Connection graph height on mobile */
+  .rf-mobile-height {
+    height: 260px !important;
+  }
 }

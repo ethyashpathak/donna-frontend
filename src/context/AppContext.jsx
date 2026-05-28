@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback } from 'react';
-import { getGmailMessages, analyzeGmail } from '../api';
+import { analyzeGmail, checkSession, clearToken, hasToken, logout as logoutApi } from '../api'; // swap getGmailMessages → checkSession
 
 const AppContext = createContext(null);
 
@@ -12,17 +12,24 @@ export function AppProvider({ children }) {
   const [connectionChecked, setConnectionChecked] = useState(false);
 
   const checkConnection = useCallback(async () => {
-    try {
-      await getGmailMessages();
-      setGmailConnected(true);
-      setConnectionChecked(true);
-      return true;
-    } catch {
-      setGmailConnected(false);
-      setConnectionChecked(true);
-      return false;
-    }
-  }, []);
+  if (!hasToken()) {
+    setGmailConnected(false);
+    setConnectionChecked(true);
+    return false;
+  }
+  try {
+    const session = await checkSession();
+    const connected = !!session?.success;
+    setGmailConnected(connected);
+    if (!connected) clearToken(); // token exists but backend rejected it
+    setConnectionChecked(true);
+    return connected;
+  } catch {
+    setGmailConnected(false);
+    setConnectionChecked(true);
+    return false;
+  }
+}, []);
 
   const runAnalysis = useCallback(async () => {
     setIsAnalyzing(true);
@@ -41,33 +48,28 @@ export function AppProvider({ children }) {
     }
   }, []);
 
-  const logout = useCallback(() => {
-    setGmailConnected(false);
-    setInsight(null);
-    setIsAnalyzing(false);
-    setLastAnalyzed(null);
-    setError(null);
-  }, []);
+  const logout = useCallback(async () => {
+  try { await logoutApi(); } catch (e) {}
+  clearToken();
+  setGmailConnected(false);
+  setInsight(null);
+  setIsAnalyzing(false);
+  setLastAnalyzed(null);
+  setError(null);
+}, []);
 
   return (
-    <AppContext.Provider
-      value={{
-        insight,
-        setInsight,
-        gmailConnected,
-        setGmailConnected,
-        isAnalyzing,
-        setIsAnalyzing,
-        lastAnalyzed,
-        setLastAnalyzed,
-        error,
-        setError,
-        connectionChecked,
-        checkConnection,
-        runAnalysis,
-        logout,
-      }}
-    >
+    <AppContext.Provider value={{
+      insight, setInsight,
+      gmailConnected, setGmailConnected,
+      isAnalyzing, setIsAnalyzing,
+      lastAnalyzed, setLastAnalyzed,
+      error, setError,
+      connectionChecked,
+      checkConnection,
+      runAnalysis,
+      logout,
+    }}>
       {children}
     </AppContext.Provider>
   );

@@ -76,13 +76,7 @@ function RiskRow({ risk, index }) {
 
         {/* Title + description */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 12,
-            marginBottom: 6,
-          }}>
+          <div className="risk-row-header">
             <h3 style={{
               fontFamily: T.sans,
               fontSize: 14,

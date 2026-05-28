@@ -1,7 +1,8 @@
 import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
-import { AUTH_URL, getGmailMessages } from '../api';
+import { AUTH_URL,  checkSession ,saveToken} from '../api';
+
 
 /* ═══════════════════════════════════════════════════════════════
    DONNA — LANDING PAGE
@@ -163,70 +164,69 @@ const Navbar = () => (
     transition={{ delay: 0.3, duration: 0.6 }}
     style={{
       position: 'fixed', top: 36, left: 0, right: 0, zIndex: 99,
-      height: 64,
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 48px',
       borderBottom: `1px solid ${T.border}`,
       background: 'rgba(10,10,15,0.60)',
       backdropFilter: 'blur(12px)',
       WebkitBackdropFilter: 'blur(12px)',
     }}
   >
-    {/* Logo */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{
-        width: 26, height: 26,
-        border: `1.5px solid ${T.amber}`,
-        borderRadius: 6,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
+    <div className="signup-navbar-inner">
+      {/* Logo */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <div style={{
-          width: 9, height: 9,
-          background: T.amber, borderRadius: 2.5,
-        }} />
+          width: 26, height: 26,
+          border: `1.5px solid ${T.amber}`,
+          borderRadius: 6,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{
+            width: 9, height: 9,
+            background: T.amber, borderRadius: 2.5,
+          }} />
+        </div>
+        <span style={{
+          fontFamily: T.mono, fontSize: 12, letterSpacing: '0.2em',
+          color: T.text, textTransform: 'uppercase', fontWeight: 600,
+        }}>
+          Donna
+        </span>
+        <div style={{
+          marginLeft: 4, padding: '2px 7px',
+          border: `1px solid rgba(232,160,48,0.18)`,
+          borderRadius: 4,
+          fontFamily: T.mono, fontSize: 9, letterSpacing: '0.14em',
+          color: 'rgba(232,160,48,0.40)', textTransform: 'uppercase',
+          fontWeight: 500,
+        }}>
+          Beta
+        </div>
       </div>
-      <span style={{
-        fontFamily: T.mono, fontSize: 12, letterSpacing: '0.2em',
-        color: T.text, textTransform: 'uppercase', fontWeight: 600,
-      }}>
-        Donna
-      </span>
-      <div style={{
-        marginLeft: 4, padding: '2px 7px',
-        border: `1px solid rgba(232,160,48,0.18)`,
-        borderRadius: 4,
-        fontFamily: T.mono, fontSize: 9, letterSpacing: '0.14em',
-        color: 'rgba(232,160,48,0.40)', textTransform: 'uppercase',
-        fontWeight: 500,
-      }}>
-        Beta
-      </div>
-    </div>
 
-    {/* Nav links */}
-    <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-      {['Features', 'Security', 'Pricing'].map((item) => (
-        <a key={item} href={`#${item.toLowerCase()}`} style={{
-          fontFamily: T.sans, fontSize: 13, color: T.textFaint,
-          textDecoration: 'none',
-          transition: 'color 0.2s ease',
-          cursor: 'pointer',
-        }}
-          onMouseEnter={(e) => e.target.style.color = T.textMid}
-          onMouseLeave={(e) => e.target.style.color = T.textFaint}
-        >
-          {item}
-        </a>
-      ))}
-      <div style={{
-        width: 1, height: 16, background: T.border, margin: '0 4px',
-      }} />
-      <span style={{
-        fontFamily: T.mono, fontSize: 11, color: T.textMuted,
-        letterSpacing: '0.08em',
-      }}>
-        v2.0
-      </span>
+      {/* Nav links */}
+      <div className="signup-navbar-links">
+        {['Features', 'Security', 'Pricing'].map((item) => (
+          <a key={item} href={`#${item.toLowerCase()}`} style={{
+            fontFamily: T.sans, fontSize: 13, color: T.textFaint,
+            textDecoration: 'none',
+            transition: 'color 0.2s ease',
+            cursor: 'pointer',
+          }}
+            onMouseEnter={(e) => e.target.style.color = T.textMid}
+            onMouseLeave={(e) => e.target.style.color = T.textFaint}
+          >
+            {item}
+          </a>
+        ))}
+        <div style={{
+          width: 1, height: 16, background: T.border, margin: '0 4px',
+        }} />
+        <span style={{
+          fontFamily: T.mono, fontSize: 11, color: T.textMuted,
+          letterSpacing: '0.08em',
+        }}>
+          v2.0
+        </span>
+      </div>
     </div>
   </motion.nav>
 );
@@ -601,35 +601,44 @@ export default function SignupPage() {
   const heroY = useTransform(scrollYProgress, [0, 0.15], [0, -40]);
 
   const handleConnect = () => {
-    setConnectState('connecting');
-    setError(null);
-    const popup = window.open(AUTH_URL, 'connectGmail', 'width=600,height=700');
+  setConnectState('connecting');
+  setError(null);
 
-    const messageListener = async (event) => {
-      if (event.data?.status === 'connected') {
-        window.removeEventListener('message', messageListener);
-        clearInterval(waitForClose);
-        setConnectState('success');
-        setTimeout(() => { setGmailConnected(true); setError(null); }, 900);
-      }
-    };
-    window.addEventListener('message', messageListener);
+  const popup = window.open(AUTH_URL, 'connectGmail', 'width=600,height=700');
 
-    const waitForClose = setInterval(async () => {
-      if (popup.closed) {
-        clearInterval(waitForClose);
-        window.removeEventListener('message', messageListener);
-        try {
-          await getGmailMessages();
+  const handleMessage = (event) => {
+    if (event.data?.status === 'connected' && event.data?.token) {
+      saveToken(event.data.token);   // store JWT in localStorage
+      cleanup();
+      setConnectState('success');
+      setTimeout(() => { setGmailConnected(true); setError(null); }, 900);
+    }
+  };
+
+  window.addEventListener('message', handleMessage);
+
+  const closeChecker = setInterval(() => {
+    try {
+      if (!popup || popup.closed) {
+        cleanup();
+        // Popup closed without postMessage — check if token landed
+        if (hasToken()) {
           setConnectState('success');
           setTimeout(() => { setGmailConnected(true); setError(null); }, 900);
-        } catch {
+        } else {
           setConnectState('error');
-          setError('Connection refused — check popup blocker & retry');
+          setError('Connection cancelled — please try again');
         }
       }
-    }, 500);
-  };
+    } catch (e) { /* cross-origin during Google redirect, ignore */ }
+  }, 1000);
+
+  function cleanup() {
+    window.removeEventListener('message', handleMessage);
+    clearInterval(closeChecker);
+    if (popup && !popup.closed) try { popup.close(); } catch (e) {}
+  }
+};
 
   const features = [
     {
@@ -666,7 +675,7 @@ export default function SignupPage() {
         minHeight: '100vh',
         position: 'relative',
         fontFamily: T.sans,
-        overflowX: 'hidden',
+        overflowX: 'clip',
         background: T.bg,
       }}
     >
@@ -689,7 +698,7 @@ export default function SignupPage() {
           alignItems: 'center',
           justifyContent: 'center',
           textAlign: 'center',
-          padding: '140px 24px 80px',
+          padding: 'clamp(110px, 20vw, 140px) clamp(16px, 5vw, 24px) 80px',
           background: T.gradientHero,
         }}>
           {/* Badge */}
@@ -713,7 +722,7 @@ export default function SignupPage() {
               transition={{ duration: 2, repeat: Infinity }}
               style={{ width: 6, height: 6, borderRadius: '50%', background: T.amber }}
             />
-            <span style={{
+            {/* <span style={{
               fontFamily: T.mono,
               fontSize: 10,
               color: T.amberDim,
@@ -722,7 +731,7 @@ export default function SignupPage() {
               fontWeight: 500,
             }}>
               Now in Beta
-            </span>
+            </span> */}
           </motion.div>
 
           {/* Main headline — Vite-style bold */}
@@ -863,7 +872,7 @@ export default function SignupPage() {
       <section id="features" style={{
         position: 'relative',
         zIndex: 10,
-        padding: '120px 24px',
+        padding: 'clamp(60px, 12vw, 120px) clamp(16px, 5vw, 24px)',
         maxWidth: 1200,
         margin: '0 auto',
       }}>
@@ -1115,17 +1124,16 @@ export default function SignupPage() {
       </section>
 
       {/* ══════ FOOTER ══════ */}
-      <footer style={{
-        position: 'relative',
-        zIndex: 10,
-        borderTop: `1px solid ${T.border}`,
-        padding: '32px 48px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        background: 'rgba(10,10,15,0.80)',
-        backdropFilter: 'blur(12px)',
-      }}>
+      <footer
+        className="signup-footer"
+        style={{
+          position: 'relative',
+          zIndex: 10,
+          borderTop: `1px solid ${T.border}`,
+          background: 'rgba(10,10,15,0.80)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 20, height: 20,

@@ -83,7 +83,7 @@ export default function ExecutiveBrief({ brief }) {
             style={{
               fontFamily: T.display,
               fontStyle: 'italic',
-              fontSize: 19,
+              fontSize: 'clamp(15px, 3vw, 19px)',
               lineHeight: 1.75,
               color: T.text,
               margin: 0,

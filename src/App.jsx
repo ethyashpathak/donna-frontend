@@ -6,7 +6,7 @@ import TopBar from './components/TopBar';
 import SummaryCard from './components/SummaryCard';
 import RiskCard from './components/RiskCard';
 import ActionItems from './components/ActionItems';
-import Connections from './components/Connections';
+import RiskMatrix from './components/Connections';
 import ExecutiveBrief from './components/ExecutiveBrief';
 import HistoricalPatterns from './components/HistoricalPatterns';
 import LoadingSpinner from './components/LoadingSpinner';
@@ -62,10 +62,10 @@ function Dashboard() {
       <FixedBackground />
 
       <main style={{
-        paddingTop: 100,
+        paddingTop: 'clamp(72px, 12vw, 100px)',
         paddingBottom: 80,
-        paddingLeft: 24,
-        paddingRight: 24,
+        paddingLeft: 'clamp(12px, 4vw, 24px)',
+        paddingRight: 'clamp(12px, 4vw, 24px)',
         maxWidth: 800,
         margin: '0 auto',
         minHeight: '100vh',
@@ -129,8 +129,8 @@ function Dashboard() {
               <SummaryCard summary={insight.summary} criticality={insight.criticality} />
               <RiskCard risks={insight.risks} />
               <ActionItems items={insight.action_items} />
-              <Connections connections={insight.connections} />
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <RiskMatrix risks={insight.risks} />
+              <div className="dashboard-bottom-grid">
                 <ExecutiveBrief brief={insight.executive_brief} />
                 <HistoricalPatterns patterns={insight.historical_patterns} />
               </div>

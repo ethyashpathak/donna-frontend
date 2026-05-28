@@ -118,7 +118,7 @@ export default function SummaryCard({ summary, criticality }) {
         <p style={{
           fontFamily: T.display,
           fontStyle: 'italic',
-          fontSize: 20,
+          fontSize: 'clamp(16px, 3.5vw, 20px)',
           lineHeight: 1.65,
           color: T.text,
           fontWeight: 400,

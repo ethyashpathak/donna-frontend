@@ -81,12 +81,7 @@ export default function TopBar() {
         backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px)',
       }} />
 
-      <div style={{
-        maxWidth: 1280, margin: '0 auto',
-        padding: '0 40px', height: 58,
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        position: 'relative',
-      }}>
+      <div className="topbar-inner">
 
         {/* ── LEFT: WORDMARK ── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
@@ -118,10 +113,10 @@ export default function TopBar() {
           </span>
 
           {/* Separator */}
-          <div style={{ width: 1, height: 18, background: T.border, flexShrink: 0 }} />
+          <div className="topbar-subtitle" style={{ width: 1, height: 18, background: T.border, flexShrink: 0 }} />
 
           {/* Subtitle — italic serif, links to landing's display voice */}
-          <span style={{
+          <span className="topbar-subtitle" style={{
             fontFamily: T.display,
             fontStyle: 'italic',
             fontSize: 13,
@@ -134,7 +129,7 @@ export default function TopBar() {
         </div>
 
         {/* ── RIGHT: STATUS + ACTION ── */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="topbar-right">
 
           {/* Gmail status */}
           <AnimatePresence mode="wait">
@@ -184,12 +179,13 @@ export default function TopBar() {
           <AnimatePresence>
             {lastAnalyzed && (
               <motion.div
+                className="topbar-timestamp"
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 exit={{ opacity: 0, width: 0 }}
                 transition={{ duration: 0.35 }}
                 style={{
-                  overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 6,
+                  overflow: 'hidden', alignItems: 'center', gap: 6,
                   padding: '5px 12px',
                   border: `1px solid ${T.border}`,
                   borderRadius: 4,
@@ -260,7 +256,7 @@ export default function TopBar() {
             )}
 
             <RefreshIcon spinning={isAnalyzing} />
-            {isAnalyzing ? 'Analyzing…' : 'Run Briefing'}
+            <span className="topbar-run-btn-label">{isAnalyzing ? 'Analyzing…' : 'Run Briefing'}</span>
           </motion.button>
 
           {/* ── LOGOUT BUTTON ── */}

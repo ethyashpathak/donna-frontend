@@ -1,375 +1,440 @@
-import { motion } from 'framer-motion';
-import { useMemo, useCallback } from 'react';
-import ReactFlow, {
-  ReactFlowProvider,
-  useNodesState,
-  useEdgesState,
-  Handle,
-  Position,
-  MarkerType,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useMemo, useState } from 'react';
 
-/* ── DESIGN TOKENS ── */
+/* ── DESIGN TOKENS — matches Donna's existing palette ── */
 const T = {
   amber: '#E8A030',
   amberDim: 'rgba(232,160,48,0.55)',
-  ink: '#09090C',
+  amberGlow: 'rgba(232,160,48,0.12)',
   panel: '#0E0E14',
+  panelRaised: '#13131A',
   border: 'rgba(255,255,255,0.055)',
-  borderHot: 'rgba(232,160,48,0.18)',
+  borderHot: 'rgba(232,160,48,0.20)',
   text: '#F0EDE8',
-  textMid: 'rgba(240,237,232,0.45)',
-  textFaint: 'rgba(240,237,232,0.22)',
+  textMid: 'rgba(240,237,232,0.50)',
+  textFaint: 'rgba(240,237,232,0.25)',
   mono: '"Söhne Mono", "Courier Prime", "Courier New", monospace',
-  display: '"Cormorant Garamond", "Playfair Display", Georgia, serif',
   sans: '"Switzer", "Satoshi", "DM Sans", system-ui, sans-serif',
+
+  // Severity colours
+  high: { dot: '#F87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.25)', text: '#F87171' },
+  medium: { dot: '#FBBF24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.22)', text: '#FBBF24' },
+  low: { dot: '#34D399', bg: 'rgba(52,211,153,0.08)', border: 'rgba(52,211,153,0.20)', text: '#34D399' },
 };
 
-/* ── Custom Node ── */
-function ConnectionNode({ data }) {
-  const deg = data.degree || 0;
-  const size = 28 + Math.min(deg, 4) * 4;
+/* ── Map severity string → numeric axis value (0–1) ── */
+function severityToAxis(s = '') {
+  switch (s.toUpperCase()) {
+    case 'HIGH':   return 0.82 + Math.random() * 0.12;
+    case 'MEDIUM': return 0.44 + Math.random() * 0.16;
+    case 'LOW':    return 0.10 + Math.random() * 0.16;
+    default:       return 0.3  + Math.random() * 0.2;
+  }
+}
+
+/* ── Derive impact axis from the impact string ── */
+function impactToAxis(impact = '') {
+  const txt = impact.toLowerCase();
+  if (txt.includes('critical') || txt.includes('severe') || txt.includes('major') || txt.includes('significant'))
+    return 0.78 + Math.random() * 0.14;
+  if (txt.includes('moderate') || txt.includes('medium') || txt.includes('potential'))
+    return 0.42 + Math.random() * 0.18;
+  return 0.12 + Math.random() * 0.18;
+}
+
+/* ── Colour helpers ── */
+function colourFor(severity = '') {
+  switch (severity.toUpperCase()) {
+    case 'HIGH':   return T.high;
+    case 'MEDIUM': return T.medium;
+    case 'LOW':    return T.low;
+    default:       return T.medium;
+  }
+}
+
+/* ── Tooltip ── */
+function Tooltip({ risk, x, y, containerW, containerH }) {
+  const col = colourFor(risk.severity);
+  const flipX = x > containerW * 0.65;
+  const flipY = y > containerH * 0.6;
 
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: 6,
-    }}>
-      <Handle
-        type="target"
-        position={Position.Top}
-        style={{ background: 'transparent', border: 'none', width: 1, height: 1 }}
-      />
-
-      {/* Node circle */}
-      <div
-        className="connection-node-circle"
-        style={{
-          width: size,
-          height: size,
-          borderRadius: '50%',
-          background: 'rgba(232,160,48,0.06)',
-          border: `1.5px solid rgba(232,160,48,0.45)`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'border-color 0.2s, background 0.2s, box-shadow 0.2s',
-          cursor: 'grab',
+    <motion.div
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.92 }}
+      transition={{ duration: 0.15 }}
+      style={{
+        position: 'absolute',
+        left: flipX ? 'auto' : x + 16,
+        right: flipX ? `calc(100% - ${x}px + 16px)` : 'auto',
+        top: flipY ? 'auto' : y - 8,
+        bottom: flipY ? `calc(100% - ${y}px - 8px)` : 'auto',
+        zIndex: 50,
+        width: 220,
+        background: T.panelRaised,
+        border: `1px solid ${col.border}`,
+        borderRadius: 8,
+        padding: '12px 14px',
+        pointerEvents: 'none',
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px ${col.border}`,
+      }}
+    >
+      {/* Severity badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: col.dot, flexShrink: 0 }} />
+        <span style={{
+          fontFamily: T.mono, fontSize: 9, letterSpacing: '0.14em',
+          color: col.text, textTransform: 'uppercase', fontWeight: 600,
         }}>
-        {/* Inner dot for high-degree nodes */}
-        {deg >= 2 && (
-          <div style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: 'rgba(232,160,48,0.5)',
-          }} />
-        )}
+          {risk.severity}
+        </span>
       </div>
 
-      {/* Label */}
-      <span style={{
-        fontFamily: T.mono,
-        fontSize: 9,
-        color: T.textMid,
-        letterSpacing: '0.06em',
-        textAlign: 'center',
-        maxWidth: 90,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        userSelect: 'none',
+      {/* Title */}
+      <div style={{
+        fontFamily: T.sans, fontSize: 12, fontWeight: 600,
+        color: T.text, lineHeight: 1.4, marginBottom: 6,
       }}>
-        {data.label}
-      </span>
+        {risk.title}
+      </div>
 
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        style={{ background: 'transparent', border: 'none', width: 1, height: 1 }}
-      />
-    </div>
+      {/* Impact */}
+      {risk.impact && (
+        <div style={{
+          fontFamily: T.sans, fontSize: 11, color: T.textMid,
+          lineHeight: 1.55, marginBottom: 6,
+        }}>
+          {risk.impact}
+        </div>
+      )}
+
+      {/* Reason */}
+      {risk.reason && (
+        <div style={{
+          fontFamily: T.mono, fontSize: 10, color: T.textFaint,
+          lineHeight: 1.5, borderTop: `1px solid ${T.border}`, paddingTop: 6,
+        }}>
+          {risk.reason}
+        </div>
+      )}
+    </motion.div>
   );
 }
 
-/* nodeTypes must be defined OUTSIDE the component to prevent re-mounts */
-const nodeTypes = { connection: ConnectionNode };
-
-/* ── Override React Flow default styles for dark theme ── */
-const rfStyle = {
-  background: 'transparent',
-};
-
-const defaultEdgeOptions = {
-  type: 'default',
-  animated: true,
-  style: { stroke: 'rgba(232,160,48,0.25)', strokeWidth: 1.2 },
-  markerEnd: {
-    type: MarkerType.ArrowClosed,
-    color: 'rgba(232,160,48,0.4)',
-    width: 16,
-    height: 16,
-  },
-};
-
-/* ── Build React Flow nodes + edges from connections data ── */
-function buildGraph(connections) {
-
-  const nodeSet = new Map();
-  const edgeList = [];
-
-  // Object format:
-  // [{from,to,type}]
-  const objectMode =
-    connections.some(
-      c =>
-        typeof c === "object" &&
-        c?.from &&
-        c?.to
-    );
-
-  if (objectMode) {
-
-    connections.forEach((conn, i) => {
-
-      const from = conn.from;
-      const to = conn.to;
-      const type = conn.type || "";
-
-      if (!nodeSet.has(from))
-        nodeSet.set(
-          from,
-          { degree: 0 }
-        );
-
-      if (!nodeSet.has(to))
-        nodeSet.set(
-          to,
-          { degree: 0 }
-        );
-
-      nodeSet.get(from).degree++;
-      nodeSet.get(to).degree++;
-
-      edgeList.push({
-        id: `e-${i}`,
-        source: from,
-        target: to,
-        label: type
-      });
-
-    });
-
-  }
-
-  // String array mode:
-  // ["Backend","DevOps","QA"]
-
-  else {
-
-    connections.forEach((name) => {
-
-      if (!nodeSet.has(name)) {
-
-        nodeSet.set(
-          name,
-          { degree: 0 }
-        );
-
-      }
-
-    });
-
-    const ids = Array.from(
-      nodeSet.keys()
-    );
-
-    // connect sequentially
-
-    for (let i = 0; i < ids.length - 1; i++) {
-
-      nodeSet.get(ids[i]).degree++;
-      nodeSet.get(ids[i + 1]).degree++;
-
-      edgeList.push({
-
-        id: `e-${i}`,
-
-        source: ids[i],
-
-        target: ids[i + 1],
-
-        label: "related"
-
-      });
-
-    }
-
-  }
-
-  const nodeIds = Array.from(
-    nodeSet.keys()
-  );
-
-  const count = nodeIds.length;
-
-  const cx = 300;
-  const cy = 160;
-
-  const radius = Math.min(
-    240,
-    60 + count * 28
-  );
-
-  const nodes = nodeIds.map(
-    (id, i) => {
-
-      const angle =
-        (2 * Math.PI * i) / count
-        - Math.PI / 2;
-
-      return {
-
-        id,
-
-        type: "connection",
-
-        position: {
-          x:
-            cx +
-            radius *
-            Math.cos(angle) - 20,
-
-          y:
-            cy +
-            radius *
-            Math.sin(angle) - 20
-        },
-
-        data: {
-          label: id,
-          degree:
-            nodeSet.get(id)
-              .degree
-        }
-
-      };
-
-    }
-  );
-
-  return {
-    nodes,
-    edges: edgeList
-  };
-
-}
-
-/* ── Inner Flow (needs ReactFlowProvider above it) ── */
-function FlowGraph({ connections }) {
-  const { nodes: initNodes, edges: initEdges } = useMemo(
-    () => buildGraph(connections),
-    [connections]
-  );
-
-  const [nodes, , onNodesChange] = useNodesState(initNodes);
-  const [edges, , onEdgesChange] = useEdgesState(initEdges);
-
+/* ── Quadrant label ── */
+function QuadLabel({ label, sub, style }) {
   return (
-    <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      nodeTypes={nodeTypes}
-      defaultEdgeOptions={defaultEdgeOptions}
-      style={rfStyle}
-      fitView
-      fitViewOptions={{ padding: 0.3 }}
-      proOptions={{ hideAttribution: true }}
-      minZoom={0.5}
-      maxZoom={1.5}
-      nodesDraggable
-      nodesConnectable={false}
-      elementsSelectable={false}
-      panOnDrag
-      zoomOnScroll={false}
-      zoomOnPinch
-      preventScrolling={false}
-    />
+    <div style={{ position: 'absolute', pointerEvents: 'none', ...style }}>
+      <div style={{
+        fontFamily: T.mono, fontSize: 8, letterSpacing: '0.18em',
+        color: 'rgba(240,237,232,0.08)', textTransform: 'uppercase', fontWeight: 600,
+        lineHeight: 1.6,
+      }}>
+        {label}
+      </div>
+      <div style={{
+        fontFamily: T.mono, fontSize: 7, letterSpacing: '0.1em',
+        color: 'rgba(240,237,232,0.05)', textTransform: 'uppercase',
+      }}>
+        {sub}
+      </div>
+    </div>
   );
 }
 
 /* ══════════════════════════════════════
    MAIN EXPORT
 ══════════════════════════════════════ */
-export default function Connections({ connections }) {
-  const nodeCount = useMemo(() => {
-    const s = new Set();
-    (connections || []).forEach(c => {
-      if (typeof c === 'object') { if (c.from) s.add(c.from); if (c.to) s.add(c.to); }
-      else s.add(String(c));
-    });
-    return s.size;
-  }, [connections]);
+export default function RiskMatrix({ risks }) {
+  const [hovered, setHovered] = useState(null);
+  const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
 
-  if (!connections || connections.length === 0) return null;
+  // Compute stable plot positions once per risks array
+  const plotted = useMemo(() => {
+    if (!Array.isArray(risks)) return [];
+    return risks.map((r, i) => ({
+      ...r,
+      _x: impactToAxis(r.impact || ''),   // X = business impact (left=low, right=high)
+      _y: 1 - severityToAxis(r.severity), // Y = severity (top=high, bottom=low) — inverted for CSS
+      _col: colourFor(r.severity),
+      _id: i,
+    }));
+  }, [risks]);
+
+  if (!plotted.length) return null;
+
+  const counts = {
+    HIGH:   plotted.filter(r => r.severity?.toUpperCase() === 'HIGH').length,
+    MEDIUM: plotted.filter(r => r.severity?.toUpperCase() === 'MEDIUM').length,
+    LOW:    plotted.filter(r => r.severity?.toUpperCase() === 'LOW').length,
+  };
 
   return (
     <motion.section
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.4, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ delay: 0.3, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
     >
       <div style={{
         background: T.panel,
         border: `1px solid ${T.border}`,
         borderRadius: 6,
-        position: 'relative',
         overflow: 'hidden',
+        position: 'relative',
       }}>
-        {/* Amber shimmer */}
+
+        {/* Top shimmer */}
         <div style={{
-          position: 'absolute', top: 0, left: '20%', right: '20%', height: 1,
-          background: 'linear-gradient(90deg, transparent, rgba(232,160,48,0.14), transparent)',
+          position: 'absolute', top: 0, left: '15%', right: '15%', height: 1,
+          background: 'linear-gradient(90deg, transparent, rgba(232,160,48,0.12), transparent)',
           pointerEvents: 'none', zIndex: 2,
         }} />
 
-        {/* Header */}
+        {/* ── Header ── */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
-          padding: '16px 22px 0',
-          position: 'relative', zIndex: 2,
+          padding: '16px 22px 14px',
+          borderBottom: `1px solid ${T.border}`,
         }}>
           <div style={{ width: 18, height: 1, background: T.amberDim }} />
           <span style={{
             fontFamily: T.mono, fontSize: 10, fontWeight: 600,
             letterSpacing: '0.2em', textTransform: 'uppercase', color: T.amberDim,
           }}>
-            Connection Graph
+            Risk Matrix
           </span>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 12 }}>
-            <span style={{
-              fontFamily: T.mono, fontSize: 9, color: T.textFaint, letterSpacing: '0.12em',
-            }}>
-              {String(nodeCount).padStart(2, '0')} NODES
-            </span>
-            <span style={{
-              fontFamily: T.mono, fontSize: 9, color: T.textFaint, letterSpacing: '0.12em',
-            }}>
-              {String(connections.length).padStart(2, '0')} EDGES
-            </span>
+
+          {/* Legend */}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 16 }}>
+            {[
+              { label: 'HIGH',   col: T.high,   count: counts.HIGH },
+              { label: 'MEDIUM', col: T.medium, count: counts.MEDIUM },
+              { label: 'LOW',    col: T.low,    count: counts.LOW },
+            ].map(({ label, col, count }) => count > 0 && (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <div style={{ width: 5, height: 5, borderRadius: '50%', background: col.dot }} />
+                <span style={{
+                  fontFamily: T.mono, fontSize: 9, color: col.text,
+                  letterSpacing: '0.1em', opacity: 0.8,
+                }}>
+                  {count} {label}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* React Flow graph */}
-        <div style={{ width: '100%', height: 360 }}>
-          <ReactFlowProvider>
-            <FlowGraph connections={connections} />
-          </ReactFlowProvider>
+        {/* ── Matrix ── */}
+        <div style={{ padding: '20px 22px 20px' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'stretch' }}>
+
+            {/* Y-axis label */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 18, flexShrink: 0,
+            }}>
+              <span style={{
+                fontFamily: T.mono, fontSize: 8, letterSpacing: '0.18em',
+                color: T.textFaint, textTransform: 'uppercase',
+                writingMode: 'vertical-rl', transform: 'rotate(180deg)',
+              }}>
+                Severity
+              </span>
+            </div>
+
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* Plot area */}
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: 300,
+                  borderRadius: 4,
+                  overflow: 'visible',
+                  background: `
+                    linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)
+                  `,
+                  backgroundSize: '25% 25%',
+                  border: `1px solid ${T.border}`,
+                }}
+              >
+                {/* Quadrant fills */}
+                {/* Top-right: high severity, high impact → CRITICAL */}
+                <div style={{
+                  position: 'absolute', top: 0, left: '50%', right: 0, bottom: '50%',
+                  background: 'rgba(248,113,113,0.03)', borderBottom: `1px dashed rgba(255,255,255,0.04)`,
+                  borderLeft: `1px dashed rgba(255,255,255,0.04)`,
+                }} />
+                {/* Top-left */}
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: '50%', bottom: '50%',
+                  background: 'rgba(251,191,36,0.025)',
+                }} />
+                {/* Bottom-right */}
+                <div style={{
+                  position: 'absolute', top: '50%', left: '50%', right: 0, bottom: 0,
+                  background: 'rgba(251,191,36,0.025)',
+                }} />
+                {/* Bottom-left: low severity, low impact → MONITOR */}
+                <div style={{
+                  position: 'absolute', top: '50%', left: 0, right: '50%', bottom: 0,
+                  background: 'rgba(52,211,153,0.02)',
+                }} />
+
+                {/* Quadrant labels */}
+                <QuadLabel label="Critical" sub="Act now" style={{ top: 8, right: 10, textAlign: 'right' }} />
+                <QuadLabel label="Escalate" sub="High watch" style={{ top: 8, left: 10 }} />
+                <QuadLabel label="Monitor" sub="Low urgency" style={{ bottom: 8, left: 10 }} />
+                <QuadLabel label="Track" sub="Low impact" style={{ bottom: 8, right: 10, textAlign: 'right' }} />
+
+                {/* Centre crosshairs */}
+                <div style={{
+                  position: 'absolute', top: '50%', left: 0, right: 0, height: 1,
+                  background: 'rgba(255,255,255,0.06)', pointerEvents: 'none',
+                }} />
+                <div style={{
+                  position: 'absolute', left: '50%', top: 0, bottom: 0, width: 1,
+                  background: 'rgba(255,255,255,0.06)', pointerEvents: 'none',
+                }} />
+
+                {/* Risk dots */}
+                {plotted.map((r, idx) => (
+                  <motion.div
+                    key={r._id}
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1 + idx * 0.06, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                    onMouseEnter={(e) => {
+                      const rect = e.currentTarget.parentElement.getBoundingClientRect();
+                      const dotRect = e.currentTarget.getBoundingClientRect();
+                      setHovered(r);
+                      setHoverPos({
+                        x: dotRect.left - rect.left + 10,
+                        y: dotRect.top - rect.top,
+                        containerW: rect.width,
+                        containerH: rect.height,
+                      });
+                    }}
+                    onMouseLeave={() => setHovered(null)}
+                    style={{
+                      position: 'absolute',
+                      left: `calc(${r._x * 100}% - 7px)`,
+                      top: `calc(${r._y * 100}% - 7px)`,
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      background: r._col.bg,
+                      border: `1.5px solid ${r._col.dot}`,
+                      cursor: 'pointer',
+                      zIndex: hovered?._id === r._id ? 20 : 10,
+                      boxShadow: hovered?._id === r._id
+                        ? `0 0 0 3px ${r._col.bg}, 0 0 12px ${r._col.dot}55`
+                        : 'none',
+                      transition: 'box-shadow 0.2s',
+                    }}
+                  >
+                    {/* Inner pulse for HIGH severity */}
+                    {r.severity?.toUpperCase() === 'HIGH' && (
+                      <motion.div
+                        animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
+                        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                        style={{
+                          position: 'absolute', inset: -3,
+                          borderRadius: '50%',
+                          border: `1px solid ${r._col.dot}`,
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    )}
+                  </motion.div>
+                ))}
+
+                {/* Tooltip */}
+                <AnimatePresence>
+                  {hovered && (
+                    <Tooltip
+                      risk={hovered}
+                      x={hoverPos.x}
+                      y={hoverPos.y}
+                      containerW={hoverPos.containerW}
+                      containerH={hoverPos.containerH}
+                    />
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* X-axis label */}
+              <div style={{ textAlign: 'center' }}>
+                <span style={{
+                  fontFamily: T.mono, fontSize: 8, letterSpacing: '0.18em',
+                  color: T.textFaint, textTransform: 'uppercase',
+                }}>
+                  Business Impact
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Risk list below the matrix ── */}
+        <div style={{
+          borderTop: `1px solid ${T.border}`,
+          padding: '14px 22px 18px',
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          {plotted.map((r, i) => {
+            const col = r._col;
+            return (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.25 + i * 0.05, duration: 0.4 }}
+                onMouseEnter={() => setHovered(r)}
+                onMouseLeave={() => setHovered(null)}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10,
+                  padding: '9px 12px',
+                  borderRadius: 5,
+                  border: `1px solid ${hovered?._id === r._id ? col.border : 'transparent'}`,
+                  background: hovered?._id === r._id ? col.bg : 'transparent',
+                  cursor: 'default',
+                  transition: 'background 0.2s, border-color 0.2s',
+                }}
+              >
+                <div style={{
+                  marginTop: 4, width: 6, height: 6, borderRadius: '50%',
+                  background: col.dot, flexShrink: 0,
+                }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                    <span style={{
+                      fontFamily: T.sans, fontSize: 12, fontWeight: 600,
+                      color: T.text, lineHeight: 1.3,
+                    }}>
+                      {r.title}
+                    </span>
+                    <span style={{
+                      fontFamily: T.mono, fontSize: 8, letterSpacing: '0.12em',
+                      color: col.text, textTransform: 'uppercase', flexShrink: 0,
+                    }}>
+                      {r.severity}
+                    </span>
+                  </div>
+                  {r.impact && (
+                    <div style={{
+                      fontFamily: T.sans, fontSize: 11, color: T.textMid, lineHeight: 1.5,
+                    }}>
+                      {r.impact}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     </motion.section>
